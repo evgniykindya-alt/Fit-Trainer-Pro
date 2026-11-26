@@ -2187,13 +2187,15 @@ function renderExerciseChart(records) {
     } catch(e) {}
     const dots = points.map(p => {
         const isRecord = p.r.value === maxVal;
-        return `<circle class="dot${isRecord ? ' record' : ''}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isRecord ? 4 : 3}"/>`;
+        const dateIso = p.r.date instanceof Date ? p.r.date.toISOString() : String(p.r.date);
+        const type = p.r.type || 'reps';
+        return `<circle class="dot${isRecord ? ' record' : ''}" tabindex="0" role="button" aria-label="${p.r.value} · ${formatShortDate(p.r.date)}" data-ex-value="${p.r.value}" data-ex-date="${dateIso}" data-ex-type="${type}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isRecord ? 6 : 5}"><title>${p.r.value} · ${formatShortDate(p.r.date)}</title></circle>`;
     }).join('');
     const labels = points.map((p, i) => {
         if (i !== 0 && i !== points.length - 1 && i !== Math.floor(points.length / 2)) return '';
         return `<text class="label" x="${p.x.toFixed(1)}" y="${h - 4}" text-anchor="middle">${formatShortDate(p.r.date)}</text>`;
     }).join('');
-    return `<svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}${trendD}<path class="line" d="${pathD}"/>${dots}${labels}</svg>`;
+    return `<div class="exercise-chart-wrap"><svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}${trendD}<path class="line" d="${pathD}"/>${dots}${labels}</svg></div>`;
 }
 
 function renderExerciseTable(records, sortBy) {
@@ -4152,6 +4154,49 @@ function renderActivity() {
                 dbKey: 'activityOrder'
             });
         });
+        // Interactive points on exercise progress chart (same UX as measurements)
+        c.querySelectorAll('.weight-chart-svg .dot[data-ex-value]').forEach(dot => {
+            const showPoint = () => {
+                const svg = dot.closest('.weight-chart-svg');
+                if (!svg) return;
+                const wrap = svg.parentElement;
+                if (!wrap) return;
+                let tip = wrap.querySelector('.measure-chart-point-tip');
+                if (!tip) {
+                    tip = document.createElement('div');
+                    tip.className = 'measure-chart-point-tip';
+                    wrap.appendChild(tip);
+                }
+                const rawVal = Number(dot.dataset.exValue);
+                const type = dot.dataset.exType || 'reps';
+                let unit = 'повт.';
+                let mainVal = rawVal;
+                if (type === 'weight') {
+                    unit = 'кг';
+                    mainVal = (Math.round(rawVal * 10) / 10).toString().replace(/\.0$/, '');
+                } else if (type === 'time') {
+                    unit = '';
+                    mainVal = (typeof formatTime === 'function') ? formatTime(rawVal) : rawVal + ' сек';
+                }
+                let dateLabel = '';
+                try {
+                    const d = new Date(dot.dataset.exDate);
+                    if (!isNaN(d.getTime())) {
+                        dateLabel = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+                } catch (err) {}
+                tip.textContent = unit
+                    ? `${mainVal} ${unit} · ${dateLabel}`
+                    : `${mainVal} · ${dateLabel}`;
+            };
+            dot.addEventListener('click', showPoint);
+            dot.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    showPoint();
+                }
+            });
+        });
     } catch(e) {
         console.error('[renderActivity error]', e);
         c.innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><div class="title">Ошибка загрузки</div>' + escapeHtml(String(e.message || e)) + '</div>';
@@ -4680,22 +4725,42 @@ function openMeasurementGoalEditor(metricKey) {
     const current = typeof goals[metricKey] === 'number' ? goals[metricKey] : '';
     document.getElementById('measurement-goal-editor-overlay')?.remove();
     const ov = document.createElement('div');
-    ov.className = 'measure-goal-editor-overlay';
+    ov.className = 'notif-side-overlay';
     ov.id = 'measurement-goal-editor-overlay';
-    ov.innerHTML = `<div class="measure-goal-editor" role="dialog" aria-modal="true" aria-labelledby="measure-goal-editor-title">
-        <div class="measure-goal-editor-grabber"></div>
-        <div class="measure-goal-editor-title" id="measure-goal-editor-title">Цель: ${meta.label.toLowerCase()}</div>
+    ov.innerHTML = `<div class="notif-side-sheet" role="dialog" aria-modal="true" aria-labelledby="measure-goal-editor-title">
+        <div class="notif-side-grabber"><div class="notif-side-grabber-bar"></div></div>
+        <h2 class="sheet-title" id="measure-goal-editor-title">Цель: ${meta.label.toLowerCase()}</h2>
         <div class="measure-goal-editor-hint">Укажите желаемое значение в ${meta.unit}</div>
         <input type="number" id="measurement-goal-input" class="input" inputmode="decimal" step="${meta.step}" min="0" max="${meta.max}" placeholder="Например, ${metricKey === 'weight' ? '72' : '90'}" value="${current}">
-        <div class="measure-goal-editor-actions"><button type="button" class="btn secondary" onclick="closeMeasurementGoalEditor()">Отмена</button><button type="button" class="btn accent" onclick="saveMeasurementGoalValue('${metricKey}')">Сохранить</button></div>
-        ${current !== '' ? `<button type="button" class="measure-goal-remove" onclick="removeMeasurementGoal('${metricKey}'); closeMeasurementGoalEditor();">Убрать цель</button>` : ''}
+        <div class="measure-goal-editor-actions"><button type="button" class="btn secondary" id="measure-goal-cancel">Отмена</button><button type="button" class="btn accent" id="measure-goal-save">Сохранить</button></div>
+        ${current !== '' ? `<button type="button" class="measure-goal-remove" id="measure-goal-remove">Убрать цель</button>` : ''}
     </div>`;
-    ov.addEventListener('click', e => { if (e.target === ov) closeMeasurementGoalEditor(); });
     document.body.appendChild(ov);
+    const finish = () => {
+        const s = ov.querySelector('.notif-side-sheet');
+        if (s) s.style.transform = 'translateX(100%)';
+        ov.style.opacity = '0';
+        setTimeout(() => { try { ov.remove(); } catch(e) {} }, 200);
+    };
+    ov._ftCloseGoal = finish;
+    const cancelBtn = ov.querySelector('#measure-goal-cancel');
+    const saveBtn = ov.querySelector('#measure-goal-save');
+    const removeBtn = ov.querySelector('#measure-goal-remove');
+    if (cancelBtn) cancelBtn.onclick = (e) => { e.preventDefault(); finish(); };
+    if (saveBtn) saveBtn.onclick = (e) => { e.preventDefault(); saveMeasurementGoalValue(metricKey); };
+    if (removeBtn) removeBtn.onclick = (e) => { e.preventDefault(); removeMeasurementGoal(metricKey); finish(); };
+    ov.addEventListener('click', e => { if (e.target === ov) finish(); });
+    setupSideSwipe(ov.querySelector('.notif-side-sheet'), ov, finish);
     setTimeout(() => { const input = document.getElementById('measurement-goal-input'); if (input) input.focus(); }, 80);
 }
 function closeMeasurementGoalEditor() {
-    document.getElementById('measurement-goal-editor-overlay')?.remove();
+    const ov = document.getElementById('measurement-goal-editor-overlay');
+    if (!ov) return;
+    if (typeof ov._ftCloseGoal === 'function') {
+        ov._ftCloseGoal();
+    } else {
+        ov.remove();
+    }
 }
 function saveMeasurementGoalValue(metricKey) {
     const meta = getMeasureMetric(metricKey);
