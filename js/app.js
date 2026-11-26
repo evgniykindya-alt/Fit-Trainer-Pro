@@ -8230,7 +8230,7 @@ function showFinishScreen() {
         ${prHtml}
         ${noteItems.length ? `<details class="finish-section-details" open><summary>📝 Заметки по упражнениям</summary><div class="finish-section-body">${noteItems.join('')}</div></details>` : ''}
         <div id="finish-note-card" class="finish-note-wrap">
-            <button type="button" id="finish-note-toggle" class="btn ghost small" onclick="toggleFinishNote()">📝 Добавить заметку к тренировке</button>
+            <button type="button" id="finish-note-toggle" class="btn ghost" onclick="toggleFinishNote()">📝 Добавить заметку к тренировке</button>
             <div id="finish-note-block" style="display:none; margin-top:10px;">
                 <textarea id="finish-note" class="input" placeholder="Как самочувствие?" style="min-height:70px;">${escapeHtml(runState.workoutNoteDraft || '')}</textarea>
                 <button type="button" class="btn small accent" style="margin-top:8px; width:100%;" onclick="saveWorkoutNote(${record.id})">💾 Сохранить</button>
