@@ -3717,6 +3717,12 @@ function initDragAndDrop(item, opts) {
 document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
 document.addEventListener('touchend', handleGlobalTouchEnd);
 document.addEventListener('touchcancel', handleGlobalTouchEnd);
+document.addEventListener('click', function(e) {
+    if (!window.__programDragJustEnded) return;
+    if (e.target.closest && e.target.closest('.program-draggable-card')) {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+    }
+}, true);
 function startDragging(item, cy) {
     if (!item._dragOpts) return;
     draggedItem = item; dragContext = item._dragOpts;
@@ -3765,7 +3771,13 @@ function finalizeDrop() {
     if (!draggedItem || !dragPlaceholder) return;
     const wasEditor = dragContext && dragContext.dbKey === 'editorExercises';
     if (dragPlaceholder.parentNode) dragPlaceholder.parentNode.insertBefore(draggedItem, dragPlaceholder);
-    saveNewOrder(); cleanupDrag();
+    const wasProgram = dragContext && dragContext.dbKey === 'programs';
+    saveNewOrder();
+    if (wasProgram) {
+        window.__programDragJustEnded = true;
+        setTimeout(() => { window.__programDragJustEnded = false; }, 350);
+    }
+    cleanupDrag();
     if (wasEditor) {
         _editorDragJustEnded = true;
         setTimeout(() => { _editorDragJustEnded = false; }, 250);
@@ -4453,13 +4465,13 @@ function toggleMeasurementsHistory() {
     saveDB('settings');
     renderMeasurements();
 }
-function buildMetricChartSvg(data, key) {
+function buildMetricChartSvg(data, key, goalValue) {
     if (!data || data.length < 2) return '';
     const meta = getMeasureMetric(key);
     const w = 340, h = 120, pad = 20;
     const vals = data.map(m => m[key]);
-    const minV = Math.min(...vals) - (key === 'weight' ? 1 : 0.5);
-    const maxV = Math.max(...vals) + (key === 'weight' ? 1 : 0.5);
+    const minV = Math.min(...vals, ...(typeof goalValue === 'number' ? [goalValue] : [])) - (key === 'weight' ? 1 : 0.5);
+    const maxV = Math.max(...vals, ...(typeof goalValue === 'number' ? [goalValue] : [])) + (key === 'weight' ? 1 : 0.5);
     const range = maxV - minV || 1;
     const stepX = (w - pad * 2) / (data.length - 1);
     const points = data.map((m, i) => {
@@ -4473,12 +4485,15 @@ function buildMetricChartSvg(data, key) {
         const y = pad + frac * (h - pad * 2);
         return `<line class="grid-line" x1="${pad}" y1="${y}" x2="${w - pad}" y2="${y}"/>`;
     }).join('');
-    const dots = points.map(p => `<circle class="dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5"><title>${formatMetricNum(p.m[key], key)} ${meta.unit} · ${formatShortDate(parseDateKey(p.m.date))}</title></circle>`).join('');
+    const goalY = (typeof goalValue === 'number' && goalValue >= minV && goalValue <= maxV)
+        ? pad + (1 - (goalValue - minV) / range) * (h - pad * 2) : null;
+    const goalLine = goalY === null ? '' : `<line class="goal-line" x1="${pad}" y1="${goalY.toFixed(1)}" x2="${w-pad}" y2="${goalY.toFixed(1)}"/><text class="goal-label" x="${w-pad-2}" y="${(goalY-4).toFixed(1)}" text-anchor="end">Цель ${formatMetricNum(goalValue, key)}</text>`;
+    const dots = points.map(p => `<circle class="dot" tabindex="0" role="button" aria-label="${formatMetricNum(p.m[key], key)} ${meta.unit}, ${formatShortDate(parseDateKey(p.m.date))}" data-measure-value="${p.m[key]}" data-measure-date="${p.m.date}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6"><title>${formatMetricNum(p.m[key], key)} ${meta.unit} · ${formatShortDate(parseDateKey(p.m.date))}</title></circle>`).join('');
     const labels = points.map((p, i) => {
         if (i !== 0 && i !== points.length - 1 && i !== Math.floor(points.length / 2)) return '';
         return `<text class="label" x="${p.x.toFixed(1)}" y="${h - 4}" text-anchor="middle">${formatShortDate(parseDateKey(p.m.date))}</text>`;
     }).join('');
-    return `<svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}<path class="area" d="${areaD}"/><path class="line" d="${pathD}"/>${dots}${labels}</svg>`;
+    return `<svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}${goalLine}<path class="area" d="${areaD}"/><path class="line" d="${pathD}"/>${dots}${labels}</svg>`;
 }
 
 function renderMeasurements() {
@@ -4519,9 +4534,37 @@ function renderMeasurements() {
             currentMain = `<div class="measure-current-card measure-current-empty" style="margin:0;"><div class="measure-current-label">${active.label} · ${rangeLabels[measurementsRange].toLowerCase()}</div><div class="measure-current-value" style="font-size:1.4rem;">нет данных</div><div class="measure-current-unit">В выбранном периоде пока нет замеров</div></div>`;
         }
         const series = metricSeries(periodAsc, key);
-        const chartInner = series.length >= 2 ? buildMetricChartSvg(series, key)
+        const goals = (DB.settings && DB.settings.measurementGoals && typeof DB.settings.measurementGoals === 'object') ? DB.settings.measurementGoals : {};
+        const goalValue = typeof goals[key] === 'number' ? goals[key] : null;
+        const goalLatest = latestMetricValue(sorted, key);
+        const goalFirst = firstMetricValue(sortedAsc, key);
+        const goalCollapsed = !!(DB.settings && DB.settings.measurementGoalCollapsed);
+        let goalPanel = '';
+        if (goalLatest && key) {
+            if (goalValue !== null) {
+                const remaining = goalValue - goalLatest.value;
+                const goalReached = Math.abs(remaining) < 0.0005;
+                const startValue = goalFirst ? goalFirst.value : goalLatest.value;
+                const denominator = goalValue - startValue;
+                const achieved = Math.abs(denominator) < 0.000001 ? (goalReached ? 100 : 0)
+                    : Math.max(0, Math.min(100, ((goalLatest.value-startValue)/denominator)*100));
+                const direction = goalReached ? 'Цель достигнута' : (key === 'weight' ? (remaining < 0 ? 'Нужно снизить' : 'Нужно набрать') : (remaining < 0 ? 'Нужно уменьшить' : 'Нужно увеличить'));
+                const distance = Math.abs(remaining);
+                goalPanel = `<section class="measure-goal-card ${goalCollapsed ? 'collapsed' : ''}">
+                    <button type="button" class="measure-goal-heading" onclick="toggleMeasurementGoalPanel()"><span><span class="measure-goal-kicker">Ваша цель</span><strong>${formatMetricNum(goalValue,key)} ${active.unit}</strong></span><span class="measure-goal-chevron">${goalCollapsed ? '＋' : '−'}</span></button>
+                    <div class="measure-goal-body" style="${goalCollapsed ? 'display:none;' : ''}">
+                        <div class="measure-goal-summary"><span>${formatMetricNum(goalLatest.value,key)} ${active.unit} сейчас</span><strong>${goalReached ? '100%' : Math.round(achieved)+'%'}</strong></div>
+                        <div class="measure-goal-track"><span style="width:${goalReached ? 100 : Math.round(achieved)}%"></span></div>
+                        <div class="measure-goal-foot"><span>${direction}</span><strong>${goalReached ? 'Отличный результат!' : formatMetricNum(distance,key)+' '+active.unit+' до цели'}</strong></div>
+                        <div class="measure-goal-actions"><button type="button" class="btn small secondary" onclick="openMeasurementGoalEditor('${key}')">Изменить цель</button><button type="button" class="btn small ghost" onclick="removeMeasurementGoal('${key}')">Убрать</button></div>
+                    </div></section>`;
+            } else {
+                goalPanel = `<section class="measure-goal-card measure-goal-empty"><div><strong>Цель ${active.label.toLowerCase()}</strong><span>Отслеживайте путь к желаемому результату</span></div><button type="button" class="btn small accent" onclick="openMeasurementGoalEditor('${key}')">＋ Задать</button></section>`;
+            }
+        }
+        const chartInner = series.length >= 2 ? buildMetricChartSvg(series, key, goalValue)
             : `<div class="measure-chart-empty">${series.length === 1 ? 'Для графика нужно минимум 2 замера за выбранный период.' : 'Нет данных по выбранному периоду.'}</div>`;
-        const currentBody = `${rangeControls}${currentMain}<div class="measure-chart-under-current"><div class="measure-chart-title">Динамика · ${active.label}</div>${chartInner}</div>`;
+        const currentBody = `${rangeControls}${currentMain}${goalPanel}<div class="measure-chart-under-current"><div class="measure-chart-title">Динамика · ${active.label}</div>${chartInner}</div>`;
 
         const bodyChips = MEASURE_METRICS.map(m => {
             const lv = latestMetricValue(periodRecords, m.key), fv = firstMetricValue(periodAsc, m.key);
@@ -4603,6 +4646,18 @@ function renderMeasurements() {
         try {
             c.querySelectorAll('#measurements-sections .measure-section-card').forEach(el => initDragAndDrop(el, { containerSelector: '#measurements-sections', itemSelector: '.measure-section-card', dbKey: 'measurementsOrder' }));
         } catch (e) { console.warn('[measure drag]', e); }
+        c.querySelectorAll('.weight-chart-svg .dot').forEach(dot => {
+            const showPoint = () => {
+                const svg = dot.closest('.weight-chart-svg');
+                if (!svg) return;
+                let tip = svg.parentElement.querySelector('.measure-chart-point-tip');
+                if (!tip) { tip = document.createElement('div'); tip.className = 'measure-chart-point-tip'; svg.parentElement.appendChild(tip); }
+                const meta = getMeasureMetric(key);
+                tip.textContent = `${formatMetricNum(Number(dot.dataset.measureValue), key)} ${meta.unit} · ${parseDateKey(dot.dataset.measureDate).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'})}`;
+            };
+            dot.addEventListener('click', showPoint);
+            dot.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showPoint(); } });
+        });
         const existingBar = document.getElementById('measurements-bulk-bar');
         if (existingBar) existingBar.remove();
         if (measurementsSelectionMode && measurementsSelectedIds.size > 0) {
@@ -4617,6 +4672,55 @@ function renderMeasurements() {
 }
 
 let editingMeasurementId = null;
+
+function openMeasurementGoalEditor(metricKey) {
+    const meta = getMeasureMetric(metricKey);
+    if (!meta) return;
+    const goals = (DB.settings.measurementGoals && typeof DB.settings.measurementGoals === 'object') ? DB.settings.measurementGoals : {};
+    const current = typeof goals[metricKey] === 'number' ? goals[metricKey] : '';
+    document.getElementById('measurement-goal-editor-overlay')?.remove();
+    const ov = document.createElement('div');
+    ov.className = 'measure-goal-editor-overlay';
+    ov.id = 'measurement-goal-editor-overlay';
+    ov.innerHTML = `<div class="measure-goal-editor" role="dialog" aria-modal="true" aria-labelledby="measure-goal-editor-title">
+        <div class="measure-goal-editor-grabber"></div>
+        <div class="measure-goal-editor-title" id="measure-goal-editor-title">Цель: ${meta.label.toLowerCase()}</div>
+        <div class="measure-goal-editor-hint">Укажите желаемое значение в ${meta.unit}</div>
+        <input type="number" id="measurement-goal-input" class="input" inputmode="decimal" step="${meta.step}" min="0" max="${meta.max}" placeholder="Например, ${metricKey === 'weight' ? '72' : '90'}" value="${current}">
+        <div class="measure-goal-editor-actions"><button type="button" class="btn secondary" onclick="closeMeasurementGoalEditor()">Отмена</button><button type="button" class="btn accent" onclick="saveMeasurementGoalValue('${metricKey}')">Сохранить</button></div>
+        ${current !== '' ? `<button type="button" class="measure-goal-remove" onclick="removeMeasurementGoal('${metricKey}'); closeMeasurementGoalEditor();">Убрать цель</button>` : ''}
+    </div>`;
+    ov.addEventListener('click', e => { if (e.target === ov) closeMeasurementGoalEditor(); });
+    document.body.appendChild(ov);
+    setTimeout(() => { const input = document.getElementById('measurement-goal-input'); if (input) input.focus(); }, 80);
+}
+function closeMeasurementGoalEditor() {
+    document.getElementById('measurement-goal-editor-overlay')?.remove();
+}
+function saveMeasurementGoalValue(metricKey) {
+    const meta = getMeasureMetric(metricKey);
+    const input = document.getElementById('measurement-goal-input');
+    const value = Number(String(input ? input.value : '').replace(',', '.'));
+    if (!Number.isFinite(value) || value <= 0 || value > meta.max) { showToast('Введите корректное значение цели'); return; }
+    DB.settings.measurementGoals = { ...(DB.settings.measurementGoals || {}), [metricKey]: value };
+    saveDB('settings');
+    closeMeasurementGoalEditor();
+    renderMeasurements();
+    showToast('Цель сохранена');
+}
+function removeMeasurementGoal(metricKey) {
+    if (!DB.settings.measurementGoals) return;
+    delete DB.settings.measurementGoals[metricKey];
+    saveDB('settings');
+    renderMeasurements();
+    showToast('Цель убрана');
+}
+function toggleMeasurementGoalPanel() {
+    DB.settings.measurementGoalCollapsed = !DB.settings.measurementGoalCollapsed;
+    saveDB('settings');
+    renderMeasurements();
+}
+
 function openMeasurementForm(editId) {
     editingMeasurementId = (editId !== undefined && editId !== null) ? editId : null;
     const existing = editingMeasurementId ? DB.measurements.find(m => m.id === editingMeasurementId) : null;
@@ -5134,8 +5238,13 @@ function renderPrograms() {
             if (programsSelectionMode) {
                 return `<div class="card" style="cursor:pointer;" onclick="toggleProgramSelection(${p.id})"><div style="display:flex; align-items:center; gap:10px;"><div class="bulk-checkbox ${isChecked ? 'checked' : ''}"></div><div style="flex:1; min-width:0;"><div style="font-weight:700; font-size:1.05rem;">📅 ${escapeHtml(p.name)}</div><div style="color:var(--muted); font-size:0.82rem; margin-top:4px;">${(p.weeks||[]).length} ${pluralWeeks((p.weeks||[]).length)}</div></div></div></div>`;
             }
-            return `<div class="card program-overview-card" style="cursor:pointer;" onclick="openProgramEditor(${p.id})"><div class="program-overview-top"><div style="flex:1;min-width:0;"><div style="font-weight:750;font-size:1.05rem;">📅 ${escapeHtml(p.name)}</div><div class="program-overview-sub">${(p.weeks||[]).length} ${pluralWeeks((p.weeks||[]).length)} · ${planned} ${planned === 1 ? 'тренировка' : 'тренировок'} в плане</div></div><button type="button" class="icon-btn delete" onclick="event.preventDefault(); event.stopPropagation(); deleteProgramById(${p.id})" aria-label="Удалить" style="background:var(--card-2); border:none; color:var(--danger); width:36px; height:36px; border-radius:10px; font-size:1rem; cursor:pointer; flex-shrink:0; z-index:2; position:relative;">🗑</button></div><div class="program-overview-progress"><div class="program-overview-progress-head"><span>Выполнение</span><strong>${progress}%</strong></div><div class="program-overview-track"><span style="width:${progress}%"></span></div><div class="program-overview-stats"><span>✅ ${done} выполнено</span><span>❌ ${missed} пропущено</span><span>⏳ ${upcoming} впереди</span></div></div><div class="program-overview-today">${escapeHtml(todayInfo)}</div></div>`;
+            return `<div class="card program-overview-card program-draggable-card" data-id="${p.id}" style="cursor:pointer;" onclick="openProgramEditor(${p.id})"><div class="program-overview-top"><div style="flex:1;min-width:0;"><div style="font-weight:750;font-size:1.05rem;">📅 ${escapeHtml(p.name)}</div><div class="program-overview-sub">${(p.weeks||[]).length} ${pluralWeeks((p.weeks||[]).length)} · ${planned} ${planned === 1 ? 'тренировка' : 'тренировок'} в плане</div></div><button type="button" class="icon-btn delete" onclick="event.preventDefault(); event.stopPropagation(); deleteProgramById(${p.id})" aria-label="Удалить" style="background:var(--card-2); border:none; color:var(--danger); width:36px; height:36px; border-radius:10px; font-size:1rem; cursor:pointer; flex-shrink:0; z-index:2; position:relative;">🗑</button></div><div class="program-overview-progress"><div class="program-overview-progress-head"><span>Выполнение</span><strong>${progress}%</strong></div><div class="program-overview-track"><span style="width:${progress}%"></span></div><div class="program-overview-stats"><span>✅ ${done} выполнено</span><span>❌ ${missed} пропущено</span><span>⏳ ${upcoming} впереди</span></div></div><div class="program-overview-today">${escapeHtml(todayInfo)}</div></div>`;
         }).join('');
+        if (!programsSelectionMode) {
+            listEl.querySelectorAll('.program-draggable-card').forEach(el => {
+                initDragAndDrop(el, { containerSelector: '#programs-list', itemSelector: '.program-draggable-card', dbKey: 'programs' });
+            });
+        }
         const existingBar = document.getElementById('programs-bulk-bar');
         if (existingBar) existingBar.remove();
         if (programsSelectionMode && programsSelectedIds.size > 0) {
