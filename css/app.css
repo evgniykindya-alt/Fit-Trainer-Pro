@@ -1986,21 +1986,28 @@ body.no-scroll [contenteditable="true"] {
 .measure-goal-actions { display:flex; gap:8px; margin-top:12px; }
 .measure-goal-actions .btn { flex:1; }
 .measure-goal-empty { display:flex; justify-content:space-between; align-items:center; gap:10px; }
-.measure-goal-empty > div { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.measure-goal-empty > div { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
 .measure-goal-empty strong { font-size:.9rem; }
 .measure-goal-empty span { color:var(--muted); font-size:.74rem; }
+.measure-goal-empty .btn {
+    flex-shrink: 0;
+    margin: 0;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: auto;
+    padding: 10px 14px;
+}
 .weight-chart-svg .dot { cursor:pointer; }
 .weight-chart-svg .dot:focus { outline:none; stroke:var(--accent); stroke-width:4; }
 .weight-chart-svg .goal-line { stroke:var(--accent); stroke-width:1.5; stroke-dasharray:5 4; }
 .weight-chart-svg .goal-label { fill:var(--accent); font-size:9px; font-weight:700; font-family:inherit; }
 .measure-chart-point-tip { margin-top:8px; padding:9px 11px; border-radius:10px; background:var(--card-2); color:var(--text); text-align:center; font-size:.8rem; font-weight:650; }
 
-.measure-goal-editor-overlay { position:fixed; inset:0; z-index:10020; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.62); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
-.measure-goal-editor { width:min(100%,390px); padding:22px; border-radius:24px; background:var(--card); border:1px solid var(--border-soft); box-shadow:var(--shadow-lg); }
-.measure-goal-editor-grabber { width:38px; height:4px; border-radius:99px; background:var(--muted-2); margin:0 auto 18px; opacity:.65; }
-.measure-goal-editor-title { font-size:1.15rem; font-weight:800; }
-.measure-goal-editor-hint { color:var(--muted); font-size:.82rem; margin:5px 0 14px; }
-.measure-goal-editor .input { width:100%; margin:0; font-size:1.15rem; }
-.measure-goal-editor-actions { display:flex; gap:9px; margin-top:16px; }
+/* Goal editor now uses notif-side-sheet; keep minimal helpers for content inside */
+.measure-goal-editor-hint { color:var(--muted); font-size:.82rem; margin:0 0 8px; text-align:center; }
+.measure-goal-editor-actions { display:flex; gap:9px; margin-top:4px; }
 .measure-goal-editor-actions .btn { flex:1; }
-.measure-goal-remove { width:100%; border:0; background:transparent; color:var(--danger); padding:12px 4px 0; font-weight:700; }
+.measure-goal-remove { width:100%; border:0; background:transparent; color:var(--danger); padding:8px 4px 0; font-weight:700; }
