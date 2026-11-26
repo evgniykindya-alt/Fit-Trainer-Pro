@@ -775,14 +775,14 @@ body.light .sound-section > .editor-settings-card .editor-subrow {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 20px;
+    margin-top: 15px;
 }
 .finish-actions .btn { width: 100%; margin: 0; }
 .finish-nav {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 20px;
+    margin-top: 15px;
     padding-top: 4px;
 }
 .finish-nav .btn {
