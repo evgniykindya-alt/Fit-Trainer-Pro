@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fit Trainer Pro v1.2.7">
+<meta name="theme-color" content="#0a0a10">
+<title>Fit Trainer Pro v1.2.7</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%230a0a10'/%3E%3Ctext x='50' y='75' font-size='75' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23a78bfa'%3EF%3C/text%3E%3C/svg%3E">
+
+<link rel="manifest" href='data:application/manifest+json,{"name":"Fit Trainer","short_name":"FitTrainer","start_url":".","display":"standalone","background_color":"%230a0a10","theme_color":"%230a0a10","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 192 192%27%3E%3Crect width=%27192%27 height=%27192%27 rx=%2750%27 fill=%27%230a0a10%27/%3E%3Ctext x=%2796%27 y=%27140%27 font-size=%27140%27 font-family=%27Arial%27 font-weight=%27bold%27 text-anchor=%27middle%27 fill=%27%23a78bfa%27%3EF%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 512 512%27%3E%3Crect width=%27512%27 height=%27512%27 rx=%27120%27 fill=%27%230a0a10%27/%3E%3Ctext x=%27256%27 y=%27380%27 font-size=%27380%27 font-family=%27Arial%27 font-weight=%27bold%27 text-anchor=%27middle%27 fill=%27%23a78bfa%27%3EF%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}]}'>
+
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='45' fill='%230a0a10'/%3E%3Ctext x='90' y='135' font-size='135' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23a78bfa'%3EF%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app-container">
+
+<div id="screen-home" class="screen active">
+    <h1>💪 Fit Trainer Pro v1.2.7</h1>
+    <div id="streak-banner-home"></div>
+    <div id="home-today-banner" style="display:none;"></div>
+    <div id="quick-start-section" class="card" style="margin-bottom:16px; padding:14px;  box-shadow:var(--shadow-sm);">
+        <div class="activity-card-header" onclick="toggleQuickStart()" style="margin-bottom:0; padding:2px 0;">
+            <div class="activity-card-title" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:600;">⚡ Быстрый старт</div>
+            <div style="display:flex; align-items:center; gap:4px;">
+                <button type="button" class="icon-toggle-btn quick-start-settings-trigger" onclick="event.stopPropagation(); openQuickStartSettingsSheet();" aria-label="Настройки быстрого старта" title="Настройки быстрого старта">
+                    <span class="icon">⚙️</span>
+				</button>
+                <button type="button" class="icon-toggle-btn" id="quick-start-toggle-btn" onclick="event.stopPropagation(); toggleQuickStart();" aria-label="Свернуть">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+            </div>
+        </div>
+        <div id="quick-start-body" class="activity-card-body" style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px;">
+            <button class="menu-btn" style="min-height:72px; padding:12px;" onclick="quickStartPreset('tabata')" data-color="fire">
+                <span class="icon" style="font-size:1.3rem;">⚡</span>
+                <div><div style="font-size:0.9rem;">Tabata</div><div class="sub">20с / 10с × 8</div></div>
+            </button>
+            <button class="menu-btn" style="min-height:72px; padding:12px;" onclick="quickStartPreset('emom')" data-color="accent">
+                <span class="icon" style="font-size:1.3rem;">⏱</span>
+                <div><div style="font-size:0.9rem;">EMOM 10</div><div class="sub">Каждую минуту</div></div>
+            </button>
+            <button class="menu-btn" style="min-height:72px; padding:12px;" onclick="quickStartPreset('hiit4020')" data-color="primary">
+                <span class="icon" style="font-size:1.3rem;">🔥</span>
+                <div><div style="font-size:0.9rem;">40/20 HIIT</div><div class="sub">8 раундов</div></div>
+            </button>
+            <button class="menu-btn" style="min-height:72px; padding:12px;" onclick="quickStartPreset('custom')" data-color="blue">
+                <span class="icon" style="font-size:1.3rem;">🎯</span>
+                <div><div style="font-size:0.9rem;">Свой таймер</div><div class="sub">Быстрый интервал</div></div>
+            </button>
+        </div>
+    </div>
+    <div class="menu-grid">
+        <button class="menu-btn menu-wide" id="menu-btn-workouts" data-color="primary" onclick="showScreen('screen-workouts')">
+            <span class="icon">🏋️</span>
+            <div><div>Мои тренировки</div><div class="sub">Создать, редактировать, запустить</div></div>
+        </button>
+        <button class="menu-btn" id="menu-btn-templates" data-color="accent" onclick="showScreen('screen-templates')">
+            <span class="icon">📋</span>
+            <div><div>Шаблоны</div><div class="sub">Мои и готовые</div></div>
+        </button>
+        <button class="menu-btn" id="menu-btn-programs" data-color="blue" onclick="showScreen('screen-programs')">
+            <span class="icon">📅</span>
+            <div><div>Программы</div><div class="sub">Планировщик</div></div>
+        </button>
+        <button class="menu-btn" id="menu-btn-activity" data-color="fire" onclick="showScreen('screen-activity')">
+            <span class="icon">🔥</span>
+            <div><div>Активность</div><div class="sub">Стрик, календарь</div></div>
+        </button>
+        <button class="menu-btn" id="menu-btn-history" data-color="danger" onclick="showScreen('screen-history')">
+            <span class="icon">📜</span>
+            <div><div>История</div><div class="sub">Записи, статистика</div></div>
+        </button>
+        <button class="menu-btn" id="menu-btn-measurements" data-color="water" onclick="showScreen('screen-measurements')">
+            <span class="icon">📏</span>
+            <div><div>Замеры</div><div class="sub">Вес, объёмы</div></div>
+        </button>
+        <button class="menu-btn menu-wide" id="menu-btn-settings" data-color="warn" onclick="showScreen('screen-settings')">
+            <span class="icon">⚙️</span>
+            <div><div>Настройки</div><div class="sub">Тема, голос, звук, данные</div></div>
+        </button>
+    </div>
+    <div id="app-footer" class="app-footer"></div>
+</div>
+
+<div id="screen-workouts" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>Мои тренировки</h1>
+        <button class="back-btn" onclick="openWorkoutsActions()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div class="workout-search-row">
+        <input type="text" id="workout-search" class="input" placeholder="🔍 Поиск..." oninput="renderWorkoutsList()">
+        <select id="workout-sort" class="select" onchange="renderWorkoutsList()">
+            <option value="custom">↕ Свои</option>
+            <option value="name">📝 По имени</option>
+            <option value="duration">⏱ По длит.</option>
+            <option value="exercises">🏋️ По упр.</option>
+        </select>
+    </div>
+    <div id="workouts-list"></div>
+    <div id="workouts-bottom-actions">
+        <button class="btn accent" onclick="openEditor(null, false)">+ Создать тренировку</button>
+        <button class="btn ghost" onclick="openImportPicker('workout')" style="margin-top:8px;">📥 Импорт тренировки</button>
+    </div>
+</div>
+
+<div id="screen-templates" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>Шаблоны</h1>
+        <button class="back-btn" onclick="openTemplatesActions()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <button class="btn accent" onclick="openEditor(null, true)">+ Создать шаблон</button>
+    <div class="template-section-title" id="user-templates-title" style="display:none;">Мои шаблоны</div>
+    <div id="user-templates-list"></div>
+    <div id="builtin-templates-title-row" style="display:flex; align-items:center; justify-content:space-between; margin:16px 0 8px;">
+        <div class="template-section-title" id="builtin-templates-title" style="display:none; margin:0;">Готовые</div>
+        <button class="icon-toggle-btn" id="toggle-builtin-btn" onclick="toggleBuiltinTemplates()" aria-label="Свернуть готовые" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+    </div>
+    <div id="builtin-templates-list"></div>
+    <div id="templates-empty" class="empty-state" style="display:none;"><span class="icon">📭</span><div class="title">Шаблоны скрыты</div>Восстановите их в настройках.</div>
+</div>
+
+<div id="screen-programs" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>Программы</h1>
+        <button class="back-btn" onclick="openProgramsActions()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div id="programs-calendar-wrap">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:700; font-size:1.05rem;">📅 Календарь</div>
+            <button class="icon-toggle-btn" onclick="toggleProgramsCalendar()" id="toggle-calendar-btn" aria-label="Свернуть календарь">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+        </div>
+        <div id="programs-calendar"></div>
+    </div>
+    <hr style="border: none; border-top: 1px solid var(--border-soft); margin: 16px 0;">
+    <div id="programs-bottom-actions">
+        <button class="btn accent" onclick="openProgramEditor(null)">+ Создать программу</button>
+    </div>
+    <div id="programs-list"></div>
+</div>
+
+<div id="screen-program-editor" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="cancelProgramEditor()" aria-label="Назад">←</button>
+        <h1 id="program-editor-title" style="margin:0;">Программа</h1>
+        <div class="spacer"></div>
+    </div>
+    <div class="card">
+        <label style="color:var(--muted); font-size:0.85rem;">Название программы</label>
+        <input type="text" id="program-name" class="input" placeholder="Например: Неделя силы">
+    </div>
+    <h2>Недели</h2>
+    <div id="program-weeks-list"></div>
+    <button class="btn ghost" onclick="addWeekToEditor()">+ Добавить неделю</button>
+    <button class="btn accent" onclick="saveProgram()" style="margin-top:14px;">💾 Сохранить</button>
+    <button type="button" class="btn danger" id="program-delete-btn" style="display:none;" onclick="event.preventDefault(); deleteProgram()">🗑 Удалить</button>
+</div>
+
+<div id="screen-editor" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="cancelEditor()" aria-label="Назад">←</button>
+        <h1 id="editor-title" style="margin:0;">Новая тренировка</h1>
+        <div class="spacer"></div>
+    </div>
+    <div class="card">
+        <label style="color:var(--muted); font-size:0.85rem;">Название</label>
+        <input type="text" id="workout-name" class="input" placeholder="Например: Пресс">
+    </div>
+
+    <details class="settings-group" open id="editor-settings-group">
+        <summary>⚙️ Настройки тренировки</summary>
+        <div class="group-body">
+            <div id="workout-settings-global-note"
+                 style="display:none;text-align:center;color:var(--muted);font-size:.8rem;line-height:1.45;font-weight:500;letter-spacing:.1px;padding:12px;margin:0 0 10px;background:var(--card-2);border:1px solid var(--border-soft);border-radius:12px;">
+                <div style="margin-bottom:10px;">У этой тренировки — <b style="color:var(--text);">общие параметры</b>.<br>Поля ниже показывают настройки приложения и заблокированы.</div>
+                <button type="button" class="btn accent small" style="width:100%;margin:0 0 8px;min-height:44px;" onclick="enablePersonalSettingsForThisWorkout()">✨ Настроить только эту тренировку</button>
+                <button type="button" class="btn ghost small" style="width:100%;margin:0;min-height:40px;" onclick="openGlobalWorkoutSettingsFromEditor()">⚙️ Изменить общие параметры</button>
+            </div>
+            <div id="workout-settings-personal-note"
+                 style="display:none;text-align:center;color:var(--muted);font-size:.78rem;line-height:1.4;padding:10px 12px;margin:0 0 10px;background:var(--primary-soft);border:1px solid rgba(167,139,250,0.25);border-radius:12px;">
+                Параметры <b style="color:var(--text);">только для этой тренировки</b>. Остальные используют общие настройки.
+            </div>
+
+            <div class="sound-section">
+                <div class="sound-section-title">Запуск</div>
+                <div class="editor-settings-card" style="margin:0; box-shadow:none;">
+                    <div class="checkbox-row"><input type="checkbox" id="auto-start"><label for="auto-start">🔄 Автозапуск упражнения</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-countdown"><label for="workout-countdown">⏱ Обратный отсчёт перед упражнением</label></div>
+                    <div id="workout-countdown-interval-row" class="editor-subrow" style="display:none;">
+                        <label>Длительность:</label>
+                        <select id="workout-countdown-duration" class="select">
+                            <option value="3">3 сек</option><option value="5">5 сек</option><option value="15">15 сек</option><option value="20">20 сек</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-skip-warmup"><label for="workout-skip-warmup">⏭ Пропускать разминку при автозапуске</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-show-start-time"><label for="workout-show-start-time">🕐 Показывать время старта</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-overtime-stopwatch"><label for="workout-overtime-stopwatch">⏱ Секундомер после «время вышло»<span class="hint">Если выкл — на экране остаётся 0:00; если вкл — идёт счёт вверх</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-final-warn"><label for="workout-final-warn">⚠️ Предупреждение до конца<span class="hint">Подсветка таймера и сигнал за несколько секунд до окончания</span></label></div>
+                    <div id="workout-final-warn-row" class="editor-subrow" style="display:none;">
+                        <label>За сколько:</label>
+                        <select id="workout-final-warn-seconds" class="select">
+                            <option value="5">5 сек</option>
+                            <option value="10">10 сек</option>
+                            <option value="15">15 сек</option>
+                            <option value="20">20 сек</option>
+                            <option value="30">30 сек</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sound-section">
+                <div class="sound-section-title">Звук</div>
+                <div class="editor-settings-card" style="margin:0; box-shadow:none;">
+                    <div class="editor-subrow" id="workout-sound-mode-row" style="display:flex; border-top:0;">
+                        <label style="min-width:auto;">Режим:</label>
+                        <select id="workout-sound-mode" class="select">
+                            <option value="beep">🔔 Пикать</option>
+                            <option value="voice">🗣 Озвучивать</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-minute-beep"><label for="workout-minute-beep">⏱ Пикать каждую минуту</label></div>
+                    <div id="workout-minute-beep-interval-row" class="editor-subrow" style="display:none;">
+                        <label>Интервал:</label>
+                        <select id="workout-minute-beep-interval" class="select">
+                            <option value="60">Каждую минуту</option><option value="120">Каждые 2 мин</option><option value="300">Каждые 5 мин</option><option value="600">Каждые 10 мин</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-continuous-beep"><label for="workout-continuous-beep">🔁 Непрерывно повторять звук окончания отдыха</label></div>
+                </div>
+            </div>
+
+            <div class="sound-section">
+                <div class="sound-section-title">Озвучка</div>
+                <div id="workout-announce-voice-hint" style="display:none; margin:0 0 10px; padding:10px 12px; border-radius:12px; background:var(--warn-soft); color:var(--warn); font-size:0.78rem; line-height:1.4;">
+                    Озвучка работает только в режиме «🗣 Озвучивать». Сейчас выбран «Пикать» — переключите режим в блоке «Звук».
+                </div>
+                <div class="editor-settings-card" style="margin:0; box-shadow:none;">
+                    <div class="checkbox-row"><input type="checkbox" id="workout-announce-numbers"><label for="workout-announce-numbers">🔢 Озвучивать номер упражнения</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-announce-workout-name"><label for="workout-announce-workout-name">🔊 Озвучивать название тренировки</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-announce-exercise-name"><label for="workout-announce-exercise-name">🏋️ Озвучивать название упражнения</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-announce-exercise-goal"><label for="workout-announce-exercise-goal">🎯 Озвучивать цель и время упражнения</label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-announce-rest-name"><label for="workout-announce-rest-name">🛌 Озвучивать название отдыха</label></div>
+                </div>
+            </div>
+
+                        <div class="sound-section">
+                <div class="sound-section-title">Повторы и вес</div>
+                <div class="editor-settings-card" style="margin:0; box-shadow:none;">
+                    <div class="checkbox-row"><input type="checkbox" id="workout-ask-reps"><label for="workout-ask-reps">🔢 Спрашивать количество повторов<span class="hint">После подхода спросить, сколько повторов сделано</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-auto-fill-reps"><label for="workout-auto-fill-reps">🔢 Автоподстановка повторов<span class="hint">Подставить число с прошлого раза (например 22 вместо цели 18)</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-ask-weight"><label for="workout-ask-weight">📏 Спрашивать вес<span class="hint">После подхода спросить рабочий вес</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-auto-fill-weight"><label for="workout-auto-fill-weight">🎯 Автоподстановка веса<span class="hint">Подставить последний вес этого упражнения</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-show-last-exercise"><label for="workout-show-last-exercise">📈 «Прошлый раз» на экране подхода<span class="hint">Показать прошлые повторы и вес во время упражнения</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-track-prs"><label for="workout-track-prs">🏆 Личные рекорды (PR)<span class="hint">Рекорды по повторам, весу и объёму на экране итогов</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-show-volume-stats"><label for="workout-show-volume-stats">📦 Объём нагрузки (тоннаж)<span class="hint">На итогах — сумма повторы × вес</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-large-run-controls"><label for="workout-large-run-controls">🖐️ Крупные кнопки на тренировке<span class="hint">Крупнее кнопки «Готово» / «Пауза»</span></label></div>
+                    <div class="checkbox-row"><input type="checkbox" id="workout-confirm-skip"><label for="workout-confirm-skip">⏭ Подтверждать пропуск упражнения<span class="hint">Спросить перед пропуском</span></label></div>
+                </div>
+            </div>
+
+            <button type="button" class="btn ghost small" id="editor-reset-to-global-btn" onclick="resetWorkoutSettingsToGlobal()" style="width:100%; margin-top:4px;">↺ Использовать общие параметры</button>
+        </div>
+    </details>
+
+    <div style="display:flex; gap:8px; align-items:center; margin: 22px 0 12px;">
+        <h2 style="margin:0; flex:1;">Содержание</h2>
+        <button class="icon-toggle-btn" onclick="toggleAllExercisesCollapsed()" id="collapse-all-btn" aria-label="Свернуть все">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+    </div>
+    <div id="exercises-list"></div>
+    <button class="btn ghost" onclick="addExercise()">+ Добавить упражнение</button>
+    <button class="btn ghost" onclick="addWarmup()" style="margin-top:6px; border:1px solid var(--warn); color:var(--warn);">🔥 Добавить разминку</button>
+    <button class="btn ghost" onclick="addRest()" style="margin-top:6px; border:1px solid var(--rest); color:var(--muted);">🛌 Добавить отдых / 💧 Воду</button>
+    <div style="margin-top: 16px;">
+        <button class="btn accent" onclick="saveWorkout()">💾 Сохранить</button>
+        <button class="btn ghost" id="export-btn" style="display:none;" onclick="exportCurrentWorkout()">📤 Экспорт</button>
+        <button class="btn danger" id="delete-btn" style="display:none;" onclick="deleteWorkout()">🗑 Удалить</button>
+    </div>
+</div>
+
+<div id="screen-preview" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" id="preview-back-btn" onclick="showScreen('screen-workouts')" aria-label="Назад">←</button>
+        <h1 id="preview-title" style="margin:0;">Предпросмотр</h1>
+        <div class="spacer"></div>
+    </div>
+    <div id="preview-content"></div>
+    <div id="preview-actions"></div>
+</div>
+
+<div id="screen-run" class="screen">
+    <div class="start-time-display" id="start-time-display" style="display:none; text-align:center; padding-bottom: 4px;">
+        <span id="start-time-label">Старт</span>
+        <span id="start-time-value">--:--</span>
+    </div>
+    <div class="top-bar">
+        <button class="back-btn" onclick="confirmExit()" aria-label="Назад">←</button>
+        <h1 id="run-title" style="margin:0;">Тренировка</h1>
+        <button class="back-btn" onclick="openRunMenu()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="phase-header" id="phase-header-el"><div class="phase-label" id="phase-label">УПРАЖНЕНИЕ</div></div>
+    <div class="current-exercise" id="current-exercise">—</div>
+    <div id="set-badge" class="set-badge" style="display:none;"></div>
+    <div id="phase-ready" style="display:none;"></div>
+    <div id="phase-countdown" style="display:none;">
+        <div class="timer-ring-wrap countdown-wrap"><div class="big-timer countdown" id="countdown-timer">3</div></div>
+        <p style="text-align:center; color:var(--muted); margin-top:8px;">Приготовься...</p>
+    </div>
+    <div id="phase-warmup" style="display:none;">
+        <div class="timer-ring-wrap">
+            <svg class="timer-ring" viewBox="0 0 120 120">
+                <circle class="timer-ring-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="timer-ring-fg warmup" id="ring-warmup" cx="60" cy="60" r="54"></circle>
+                <circle class="timer-ring-dot warmup" id="dot-warmup" cx="60" cy="6" r="5"></circle>
+            </svg>
+            <div class="big-timer warmup" id="warmup-timer">00:00</div>
+        </div>
+        <button class="btn warn" id="warmup-pause-btn" onclick="toggleWarmupPause()">❚❚ Пауза</button>
+        <button class="btn accent" id="warmup-finish-early-btn" onclick="finishWarmupEarly()">✓ Закончить разминку</button>
+        <button class="btn ghost" id="warmup-skip-btn" onclick="skipWarmupElement()" style="color:var(--muted);">→ Пропустить разминку</button>
+        <button class="btn accent" id="warmup-confirm-btn" onclick="confirmWarmupFinished()" style="display:none;">✓ Завершить разминку</button>
+    </div>
+    <div id="phase-work" style="display:none;">
+        <div class="timer-ring-wrap">
+            <svg class="timer-ring" viewBox="0 0 120 120">
+                <circle class="timer-ring-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="timer-ring-fg work" id="ring-work" cx="60" cy="60" r="54"></circle>
+                <circle class="timer-ring-dot work" id="dot-work" cx="60" cy="6" r="5"></circle>
+            </svg>
+            <div class="big-timer" id="work-timer">00:00</div>
+        </div>
+        <div id="work-reps-info" style="text-align:center; color:var(--blue); font-size:1.1rem; font-weight:700; margin-bottom:12px; display:none;">Цель: <span id="work-reps-target">10 повторений</span></div>
+        <div id="work-last-perf" style="display:none; text-align:center; margin:0 0 12px; padding:10px 12px; background:var(--card-2); border:1px solid var(--border-soft); border-radius:var(--r-sm);">
+            <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Прошлый раз</div>
+            <div id="work-last-perf-main" style="font-size:0.95rem; font-weight:700; color: var(--blue); line-height:1.35;"></div>
+            <div id="work-last-perf-meta" style="font-size:0.75rem; color:var(--muted); margin-top:4px;"></div>
+        </div>
+        <div id="work-set-timeline" class="set-timeline" style="display:none;"></div>
+        <button class="btn accent" id="work-finish-btn" onclick="finishExercise()">✓ Завершить упражнение</button>
+        <button class="btn warn" id="work-pause-btn" onclick="toggleWorkPause()" style="margin-top:8px;">❚❚ Пауза</button>
+        <button class="btn ghost" id="work-skip-btn" onclick="skipExercise()" style="margin-top:8px; color:var(--muted);">→ Пропустить упражнение</button>
+    </div>
+    <div id="phase-rest" style="display:none;">
+        <div id="rest-middle-icon" class="rest-icon-display" style="display:none;">💧</div>
+        <div class="timer-ring-wrap" id="rest-ring-wrap">
+            <svg class="timer-ring" viewBox="0 0 120 120">
+                <circle class="timer-ring-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="timer-ring-fg rest" id="ring-rest" cx="60" cy="60" r="54"></circle>
+            </svg>
+            <div class="big-timer" id="rest-timer">00:00</div>
+        </div>
+        <div class="next-exercise-block" id="next-exercise-block">
+            <div class="next-exercise-label" id="next-exercise-label">Далее</div>
+            <div class="next-exercise-name" id="next-exercise-name">—</div>
+        </div>
+        <div id="rest-note-block" style="display:none; margin:12px 0;">
+            <button id="rest-note-toggle" class="btn ghost small" style="width:100%; padding:10px; font-size:0.85rem;" onclick="toggleRestNote()">📝 Добавить заметку</button>
+            <textarea id="rest-note-textarea" class="input" placeholder="Например: отжался 55 раз" style="display:none; margin-top:8px; min-height:70px;"></textarea>
+        </div>
+        <div class="rest-adjust" id="rest-adjust">
+            <button class="btn small ghost" onclick="adjustRest(-30)">-30с</button>
+            <button class="btn small ghost" onclick="adjustRest(-10)">-10с</button>
+            <button class="btn small ghost" onclick="adjustRest(+10)">+10с</button>
+            <button class="btn small ghost" onclick="adjustRest(+30)">+30с</button>
+        </div>
+        <div class="rest-buttons">
+            <button class="btn accent" id="rest-skip-btn" onclick="skipRest()">→ Пропустить</button>
+            <button class="btn warn" id="rest-pause-btn" onclick="toggleRestPause()">❚❚ Пауза</button>
+            <button class="btn accent" id="rest-confirm-btn" onclick="confirmRestFinished()" style="display:none;">✓ Завершить отдых</button>
+            <button class="btn blue" id="rest-undo-btn" onclick="undoLastElement()">↩ Предыдущее упражнение</button>
+            <button class="btn accent" id="rest-banner-btn" onclick="confirmBanner()" style="display:none;">▶ Продолжить</button>
+        </div>
+    </div>
+    <div id="phase-finish" style="display:none;"></div>
+    <button id="timer-mute-btn" class="timer-mute-btn" onclick="toggleTimerMute()" aria-label="Выключить звук">
+        <span id="timer-mute-icon">🔊</span>
+    </button>
+</div>
+
+<div id="screen-activity" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>Активность</h1>
+        <button class="back-btn" onclick="openActivityMenu()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div id="activity-content"></div>
+</div>
+
+<div id="screen-history" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>История</h1>
+        <button class="back-btn" onclick="openHistoryActions()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div class="workout-search-row">
+        <input type="text" id="history-search" class="input" placeholder="🔍 Поиск..." oninput="renderHistory()">
+        <select id="history-period" class="select" onchange="renderHistory()">
+            <option value="all">Всё время</option>
+            <option value="7">7 дней</option>
+            <option value="30">30 дней</option>
+            <option value="90">90 дней</option>
+        </select>
+    </div>
+    <div class="tabs">
+        <div class="tab active" onclick="switchHistoryTab('list', this)">Записи</div>
+        <div class="tab" onclick="switchHistoryTab('stats', this)">Статистика</div>
+        <div class="tab" onclick="switchHistoryTab('records', this)">Рекорды</div>
+        <div class="tab" onclick="switchHistoryTab('programs', this)">Программы</div>
+    </div>
+    <div id="history-tab-list"></div>
+    <div id="history-tab-stats" style="display:none;"></div>
+    <div id="history-tab-records" style="display:none;"></div>
+    <div id="history-tab-programs" style="display:none;"></div>
+</div>
+
+<div id="screen-measurements" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="showScreen('screen-home')" aria-label="Назад">←</button>
+        <h1>Замеры тела</h1>
+        <button class="back-btn" onclick="openMeasurementsActions()" aria-label="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <div id="measurements-content"></div>
+</div>
+
+<div id="screen-settings" class="screen">
+    <div class="top-bar">
+        <button class="back-btn" onclick="closeSettings()" aria-label="Назад">←</button>
+        <h1>Настройки</h1>
+        <button class="back-btn" onclick="openSettingsActions()" aria-label="Действия" title="Действия" style="font-size:1.2rem;">⋮</button>
+    </div>
+    <input type="text" id="settings-search" class="input" placeholder="🔍 Поиск по настройкам..." oninput="filterSettings(this.value)" style="margin-bottom:16px;">
+    <details class="settings-group" open data-group="appearance">
+        <summary>🎨 Внешний вид</summary>
+        <div class="group-body">
+            <div class="sound-section"><div class="sound-section-title">Тема</div><div class="sound-options" id="theme-mode-options"></div></div>
+            <div class="sound-section"><div class="sound-section-title">Размер шрифта</div><div class="sound-options" id="font-size-options"></div></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-compact-workouts"><label for="set-compact-workouts">📋 Компактный список тренировок</label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="sound">
+        <summary>🔊 Звук и голос</summary>
+        <div class="group-body">
+            <div class="sound-section"><div class="sound-section-title">Режим звука</div><div class="sound-options" id="sound-mode-options"></div></div>
+            <div class="sound-section"><div class="sound-section-title">Голос</div><div class="sound-options" id="voice-options"></div></div>
+            <div class="sound-section"><div class="sound-section-title">Скорость речи</div><div class="sound-options" id="voice-rate-options"></div></div>
+            <div id="settings-announce-voice-hint" style="display:none; margin:0 0 10px; padding:10px 12px; border-radius:12px; background:var(--warn-soft); color:var(--warn); font-size:0.78rem; line-height:1.4;">
+                Галочки озвучки работают только в режиме «🗣 Озвучивать». Сейчас выбран «Пикать» — голосовые объявления отключены.
+            </div>
+            <div class="checkbox-row" id="announce-buttons-row"><input type="checkbox" id="set-announce-buttons"><label for="set-announce-buttons">👆 Озвучивать кнопки</label></div>
+            <div class="checkbox-row announce-opt-row"><input type="checkbox" id="set-announce-numbers"><label for="set-announce-numbers">🔢 Озвучивать номер упражнения</label></div>
+            <div class="checkbox-row announce-opt-row"><input type="checkbox" id="set-announce-workout-name"><label for="set-announce-workout-name">🔊 Озвучивать название тренировки</label></div>
+            <div class="checkbox-row announce-opt-row"><input type="checkbox" id="set-announce-exercise-name"><label for="set-announce-exercise-name">🏋️ Озвучивать название упражнения</label></div>
+            <div class="checkbox-row announce-opt-row"><input type="checkbox" id="set-announce-exercise-goal"><label for="set-announce-exercise-goal">🎯 Озвучивать цель и время упражнения</label></div>
+            <div class="checkbox-row announce-opt-row"><input type="checkbox" id="set-announce-rest-name"><label for="set-announce-rest-name">🛌 Озвучивать название отдыха</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-minute-beep"><label for="set-minute-beep">⏱ Пикать каждую минуту</label></div>
+            <div id="minute-beep-options" style="display:none;"><div class="sound-section"><div class="sound-section-title">Интервал пиканья</div><div class="sound-options" id="minute-beep-interval-options"></div></div></div>
+            <div class="sound-section"><div class="sound-section-title">Звук окончания отдыха</div><div class="sound-options" id="sound-options"></div></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-continuous-beep"><label for="set-continuous-beep">🔁 Непрерывно повторять</label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="notify">
+        <summary>🔔 Уведомления</summary>
+        <div class="group-body">
+            <div class="checkbox-row"><input type="checkbox" id="set-notify-scheduled"><label for="set-notify-scheduled">📅 Напоминать о тренировках<span class="hint">Уведомления всегда в шторке снизу</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-notify-show-completed"><label for="set-notify-show-completed">✅ Показывать выполненные</label></div>
+            <div class="settings-row-with-sub">
+    <div class="checkbox-row" style="margin-bottom: 0; border-radius: 0;">
+        <input type="checkbox" id="set-streak-guard">
+        <label for="set-streak-guard">🔥 Стрик-гард<span class="hint">Напомним вечером, если серия под угрозой</span></label>
+    </div>
+    <div id="streak-guard-hour-row" class="sub-row" style="display:none; padding-bottom: 10px;">
+        <label>Время:</label>
+        <select id="set-streak-guard-hour" class="select">
+            <option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
+        </select>
+    </div>
+</div>
+
+<div class="checkbox-row"><input type="checkbox" id="set-weekly-digest"><label for="set-weekly-digest">📈 Итоги недели<span class="hint">По воскресеньям вечером</span></label></div>
+
+<div class="settings-row-with-sub">
+    <div class="checkbox-row" style="margin-bottom: 0; border-radius: 0;">
+        <input type="checkbox" id="set-quiet-hours">
+        <label for="set-quiet-hours">🌙 Тихие часы<span class="hint">Не беспокоить в заданное время</span></label>
+    </div>
+    <div id="quiet-hours-row" class="sub-row" style="display:none; padding-bottom: 10px;">
+        <label>С:</label>
+        <select id="set-quiet-start" class="select">
+            <option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option><option value="0">00:00</option>
+        </select>
+        <label>До:</label>
+        <select id="set-quiet-end" class="select">
+            <option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option>
+        </select>
+    </div>
+</div>
+            <div class="sound-section"><div class="sound-section-title">Время отсрочки («Позже»)</div><div class="sound-options" id="snooze-duration-options"></div></div>
+            <button class="btn ghost" style="margin-top:10px;" onclick="showNotifHistory()">📋 История уведомлений</button>
+            <div style="color:var(--muted); font-size:0.78rem; margin-top:6px; text-align:center;">Хранятся последние 7 дней, затем удаляются автоматически</div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="timers">
+        <summary>⏱ Таймеры и автозапуск</summary>
+        <div class="group-body">
+            <div class="checkbox-row"><input type="checkbox" id="set-countdown"><label for="set-countdown">⏱ Обратный отсчёт</label></div>
+            <div id="countdown-interval-options" style="display:none;"><div class="sound-section"><div class="sound-section-title">Интервал отсчёта</div><div class="sound-options" id="countdown-interval-list"></div></div></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-default-auto"><label for="set-default-auto">🔄 Автозапуск упражнений</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-show-start-time"><label for="set-show-start-time">🕐 Показывать время старта</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-overtime-stopwatch"><label for="set-overtime-stopwatch">⏱ Секундомер после «время вышло»<span class="hint">Если выкл — на экране остаётся 0:00; если вкл — идёт счёт вверх</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-final-warn"><label for="set-final-warn">⚠️ Предупреждение до конца<span class="hint">Подсветка таймера и сигнал за несколько секунд до окончания</span></label></div>
+            <div id="final-warn-options" style="display:none;">
+                <div class="sound-section">
+                    <div class="sound-section-title">За сколько секунд</div>
+                    <div class="sound-options" id="final-warn-seconds-list"></div>
+                </div>
+            </div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="workout-preferences">
+    <summary>🏋️ Настройки тренировок</summary>
+    <div class="group-body">
+        <div style="padding:10px 12px;background:var(--card-2);border:1px solid var(--border-soft);border-radius:12px;font-size:.82rem;line-height:1.45;color:var(--muted);">
+            По умолчанию все тренировки используют <b style="color:var(--text);">общие параметры</b> (звук, таймеры, повторы/вес).<br><br>
+            Если для одной тренировки нужны другие правила — откройте её в редакторе и нажмите <b style="color:var(--text);">«Настроить только эту тренировку»</b>. Остальные не изменятся.<br><br>
+            Быстрый старт всегда использует свои параметры отдельно.
+        </div>
+    </div>
+</details>
+    <details class="settings-group" open data-group="behavior">
+        <summary>📱 Поведение</summary>
+        <div class="group-body">
+            <div class="checkbox-row"><input type="checkbox" id="set-wakelock"><label for="set-wakelock">🔒 Не гасить экран<span class="hint">Экран не тухнет во время тренировки</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-show-bottom-nav"><label for="set-show-bottom-nav">📱 Показывать нижнее меню<span class="hint">Панель навигации внизу экрана</span></label></div>
+            <div id="vibration-warning" class="checkbox-row disabled" style="display:none;"><label>📳 Вибро не поддерживается</label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="strength">
+        <summary>🏋️ Повторы, вес и прогресс</summary>
+        <div class="group-body">
+            <div class="settings-section-label">Запрос после подхода</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-ask-reps"><label for="set-ask-reps">🔢 Спрашивать количество повторов<span class="hint">После подхода спросить, сколько повторов сделано</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-auto-fill-reps"><label for="set-auto-fill-reps">🔢 Автоподстановка повторов<span class="hint">Подставить число с прошлого раза</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-ask-weight"><label for="set-ask-weight">📏 Спрашивать вес после подхода<span class="hint">После подхода спросить рабочий вес</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-auto-fill-weight"><label for="set-auto-fill-weight">🎯 Автоподстановка веса<span class="hint">Подставить последний вес этого упражнения</span></label></div>
+
+            <div class="settings-section-label">Вес</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-round-weight"><label for="set-round-weight">⚖️ Округлять вес<span class="hint">Вкл — до 0,1 (72.2). Выкл — до 0,001 (71.150)</span></label></div>
+
+            <div class="settings-section-label">История и рекорды</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-show-last-exercise"><label for="set-show-last-exercise">📈 Показывать «Прошлый раз»<span class="hint">Прошлые повторы и вес на экране подхода</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-track-prs"><label for="set-track-prs">🏆 Личные рекорды (PR)<span class="hint">Рекорды по повторам, весу и объёму</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-show-volume-stats"><label for="set-show-volume-stats">📦 Объём нагрузки (тоннаж)<span class="hint">Сумма повторы × вес на итогах</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-share-image-card"><label for="set-share-image-card">🖼️ Карточка при «Поделиться»<span class="hint">Изображение результата, не только текст</span></label></div>
+
+            <div class="settings-section-label">Во время тренировки</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-large-run-controls"><label for="set-large-run-controls">🖐️ Крупные кнопки<span class="hint">Удобнее нажимать в зале</span></label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-confirm-skip"><label for="set-confirm-skip">→ Подтверждать пропуск<span class="hint">Спросить перед пропуском упражнения</span></label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="home">
+        <summary>🏠 Главный экран</summary>
+        <div class="group-body">
+            <div class="checkbox-row"><input type="checkbox" id="set-show-activity"><label for="set-show-activity">🔥 Календарь активностей</label></div>
+            <div style="color:var(--muted); font-size:0.8rem; padding:0 4px 10px;">Скройте ненужные пункты с главного экрана. «Мои тренировки» и «Настройки» скрыть нельзя.</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-templates"><label for="set-hide-templates">📋 Скрыть «Шаблоны»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-programs"><label for="set-hide-programs">📅 Скрыть «Программы»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-activity"><label for="set-hide-activity">🔥 Скрыть «Активность»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-history"><label for="set-hide-history">📜 Скрыть «История»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-measurements"><label for="set-hide-measurements">📏 Скрыть «Замеры»</label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="bottomnav">
+        <summary>📱 Нижнее меню</summary>
+        <div class="group-body">
+            <div style="color:var(--muted); font-size:0.8rem; padding:0 4px 10px;">Выберите, какие пункты показывать в нижнем меню. «Тренировки» и «Настройки» скрыть нельзя.</div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-nav-templates"><label for="set-hide-nav-templates">📋 Скрыть «Шаблоны»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-nav-programs"><label for="set-hide-nav-programs">📅 Скрыть «Программы»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-nav-history"><label for="set-hide-nav-history">📜 Скрыть «История»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-nav-activity"><label for="set-hide-nav-activity">🔥 Скрыть «Активность»</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="set-hide-nav-measurements"><label for="set-hide-nav-measurements">📏 Скрыть «Замеры»</label></div>
+        </div>
+    </details>
+    <details class="settings-group" open data-group="data">
+        <summary>💾 Данные</summary>
+        <div class="group-body">
+            <div class="checkbox-row"><input type="checkbox" id="set-auto-backup"><label for="set-auto-backup">💾 Напоминать о бэкапе<span class="hint">Раз в 20 тренировок или 7 дней · <span id="last-backup-info">—</span></span></label></div>
+            <button class="btn accent" onclick="exportData()" style="margin-top:4px;">💾 Сделать бэкап</button>
+            <button class="btn ghost" onclick="exportDataPlain()" style="margin-top:8px;">📄 Бэкап без пароля (JSON)</button>
+            <button class="btn ghost" onclick="exportCSV()">📥 Экспорт истории (CSV)</button>
+            <button class="btn ghost" onclick="openImportPicker('data')">📥 Импорт данных</button>
+            <button class="btn ghost" onclick="runDataIntegrityCheck(true)">🩺 Проверить данные</button>
+            <button class="btn danger" onclick="clearHistory()">🗑 Очистить историю</button>
+            <button class="btn ghost" onclick="restoreBuiltins()">🔄 Восстановить шаблоны</button>
+        </div>
+    </details>
+    <details class="settings-group" data-group="about">
+        <summary>ℹ️ О приложении</summary>
+        <div class="group-body">
+            <div class="card" style="color:var(--muted); font-size:0.85rem; line-height:1.6;">
+                <strong style="color:var(--text);">Fit Trainer Pro v1.2.7</strong><br>
+                Данные хранятся локально.<br>
+                <span id="error-log-info" style="display:block; margin-top:8px;"></span>
+            </div>
+        </div>
+    </details>
+</div>
+
+</div>
+
+<nav id="bottom-nav" class="bottom-nav">
+    <button class="nav-btn" data-screen="screen-workouts" onclick="showScreen('screen-workouts')">
+        <span class="nav-icon">🏋️</span><span>Трен.</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-templates" data-hideable="templates" onclick="showScreen('screen-templates')">
+        <span class="nav-icon">📋</span><span>Шаблоны</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-programs" data-hideable="programs" onclick="showScreen('screen-programs')">
+        <span class="nav-icon">📅</span><span>Прогр.</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-history" data-hideable="history" onclick="showScreen('screen-history')">
+        <span class="nav-icon">📜</span><span>История</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-activity" data-hideable="activity" onclick="showScreen('screen-activity')">
+        <span class="nav-icon">🔥</span><span>Актив.</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-measurements" data-hideable="measurements" onclick="showScreen('screen-measurements')">
+        <span class="nav-icon">📏</span><span>Замеры</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-settings" onclick="showScreen('screen-settings')">
+        <span class="nav-icon">⚙️</span><span>Настр.</span>
+    </button>
+</nav>
+
+<div id="notif-grabber" class="notif-grabber" style="display:none;">
+    <div class="notif-grabber-bar"></div>
+    <div class="notif-grabber-badge" style="display:none;"></div>
+</div>
+
+<div id="toast-container"></div>
+
+  <script src="js/app.js" defer></script>
+</body>
+</html>
