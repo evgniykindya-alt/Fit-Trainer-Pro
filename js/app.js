@@ -4513,10 +4513,21 @@ function toggleMeasurementsHistory() {
 function buildMetricChartSvg(data, key, goalValue) {
     if (!data || data.length < 2) return '';
     const meta = getMeasureMetric(key);
-    const w = 340, h = 120, pad = 20;
+    const w = 340, h = 168, pad = 22;
     const vals = data.map(m => m[key]);
-    const minV = Math.min(...vals, ...(typeof goalValue === 'number' ? [goalValue] : [])) - (key === 'weight' ? 1 : 0.5);
-    const maxV = Math.max(...vals, ...(typeof goalValue === 'number' ? [goalValue] : [])) + (key === 'weight' ? 1 : 0.5);
+    let minV = Math.min(...vals);
+    let maxV = Math.max(...vals);
+    if (typeof goalValue === 'number' && Number.isFinite(goalValue)) {
+        minV = Math.min(minV, goalValue);
+        maxV = Math.max(maxV, goalValue);
+    }
+    const span = (maxV - minV) || 1;
+    // Extra headroom so goal line never sits flush on data when values are close
+    const padExtra = key === 'weight'
+        ? Math.max(1.2, span * 0.22)
+        : Math.max(0.8, span * 0.22);
+    minV -= padExtra;
+    maxV += padExtra;
     const range = maxV - minV || 1;
     const stepX = (w - pad * 2) / (data.length - 1);
     const points = data.map((m, i) => {
@@ -4530,15 +4541,22 @@ function buildMetricChartSvg(data, key, goalValue) {
         const y = pad + frac * (h - pad * 2);
         return `<line class="grid-line" x1="${pad}" y1="${y}" x2="${w - pad}" y2="${y}"/>`;
     }).join('');
-    const goalY = (typeof goalValue === 'number' && goalValue >= minV && goalValue <= maxV)
-        ? pad + (1 - (goalValue - minV) / range) * (h - pad * 2) : null;
-    const goalLine = goalY === null ? '' : `<line class="goal-line" x1="${pad}" y1="${goalY.toFixed(1)}" x2="${w-pad}" y2="${goalY.toFixed(1)}"/><text class="goal-label" x="${w-pad-2}" y="${(goalY-4).toFixed(1)}" text-anchor="end">Цель ${formatMetricNum(goalValue, key)}</text>`;
+    let goalLine = '';
+    if (typeof goalValue === 'number' && Number.isFinite(goalValue) && goalValue >= minV && goalValue <= maxV) {
+        const goalY = pad + (1 - (goalValue - minV) / range) * (h - pad * 2);
+        // Prefer label above the line; if too close to top, put below
+        const labelAbove = goalY > pad + 14;
+        const labelY = labelAbove ? (goalY - 6) : (goalY + 12);
+        goalLine = `<line class="goal-line" x1="${pad}" y1="${goalY.toFixed(1)}" x2="${w - pad}" y2="${goalY.toFixed(1)}"/>`
+            + `<text class="goal-label" x="${w - pad - 2}" y="${labelY.toFixed(1)}" text-anchor="end">Цель ${formatMetricNum(goalValue, key)}</text>`;
+    }
     const dots = points.map(p => `<circle class="dot" tabindex="0" role="button" aria-label="${formatMetricNum(p.m[key], key)} ${meta.unit}, ${formatShortDate(parseDateKey(p.m.date))}" data-measure-value="${p.m[key]}" data-measure-date="${p.m.date}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6"><title>${formatMetricNum(p.m[key], key)} ${meta.unit} · ${formatShortDate(parseDateKey(p.m.date))}</title></circle>`).join('');
     const labels = points.map((p, i) => {
         if (i !== 0 && i !== points.length - 1 && i !== Math.floor(points.length / 2)) return '';
         return `<text class="label" x="${p.x.toFixed(1)}" y="${h - 4}" text-anchor="middle">${formatShortDate(parseDateKey(p.m.date))}</text>`;
     }).join('');
-    return `<svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}${goalLine}<path class="area" d="${areaD}"/><path class="line" d="${pathD}"/>${dots}${labels}</svg>`;
+    // Order: grid → area → line → goal (on top) → dots → labels
+    return `<svg class="weight-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${gridLines}<path class="area" d="${areaD}"/><path class="line" d="${pathD}"/>${goalLine}${dots}${labels}</svg>`;
 }
 
 function renderMeasurements() {
@@ -5195,8 +5213,13 @@ function toggleAllMeasurementsCards() {
 function openMeasurementsActions() {
     const ov = document.createElement('div');
     ov.className = 'notif-side-overlay action-menu-overlay';
+    const metricKey = measurementsActiveMetric || 'weight';
+    const goals = (DB.settings && DB.settings.measurementGoals && typeof DB.settings.measurementGoals === 'object') ? DB.settings.measurementGoals : {};
+    const hasGoal = typeof goals[metricKey] === 'number';
+    const goalBtnLabel = hasGoal ? '🎯 Изменить цель' : '🎯 Задать цель';
     ov.innerHTML = `<div class="notif-side-sheet"><div class="notif-side-grabber"><div class="notif-side-grabber-bar"></div></div><h2 class="sheet-title">Действия</h2>
         <button class="btn accent" onclick="closeTopSheet(); if(measurementsSelectionMode) exitMeasurementsBulkMode(); openMeasurementForm();">+ Добавить замер</button>
+        <button class="btn ghost" onclick="closeTopSheet(); openMeasurementGoalEditor('${metricKey}');">${goalBtnLabel}</button>
         <button class="btn ghost" onclick="closeTopSheet(); toggleAllMeasurementsCards();">${getMeasurementsBulkToggleLabel()}</button>
         <button class="btn ghost" onclick="closeTopSheet(); ${measurementsSelectionMode ? 'exitMeasurementsBulkMode()' : 'enterMeasurementsBulkMode()'};">${measurementsSelectionMode ? 'Отменить выбор' : 'Выбрать'}</button>
         <button class="btn ghost" onclick="closeTopSheet(); renderMeasurements(); showToast('Обновлено');">Обновить</button>
@@ -8189,20 +8212,39 @@ function showFinishScreen() {
         }
     }
     document.getElementById('phase-finish').innerHTML = `
-        <div class="finish-card" style="margin-top:0;"><div class="finish-title">🎉 Готово!</div><div class="stats-grid"><div class="stat-row"><div class="stat-label">🕐 Начало</div><div class="stat-value">${formatClock(runState.startTime)}</div></div><div class="stat-row"><div class="stat-label">🏁 Конец</div><div class="stat-value">${formatClock(endTime)}</div></div><div class="stat-row"><div class="stat-label">⏱ Длительность</div><div class="stat-value">${formatTime(totalDuration)}</div></div><div class="stat-row"><div class="stat-label">💪 Работа</div><div class="stat-value highlight">${formatTime(runState.totalWorkTime)}</div></div>${(runState.warmupSeconds || 0) > 0 ? `<div class="stat-row"><div class="stat-label">🔥 Разминка</div><div class="stat-value">${formatTime(runState.warmupSeconds)}</div></div>` : ''}</div></div>
+        <div class="finish-card" style="margin-top:0;">
+            <div class="finish-title">🎉 Готово!</div>
+            <div class="stats-grid">
+                <div class="stat-row"><div class="stat-label">🕐 Начало</div><div class="stat-value">${formatClock(runState.startTime)}</div></div>
+                <div class="stat-row"><div class="stat-label">🏁 Конец</div><div class="stat-value">${formatClock(endTime)}</div></div>
+                <div class="stat-row"><div class="stat-label">⏱ Длительность</div><div class="stat-value">${formatTime(totalDuration)}</div></div>
+                <div class="stat-row"><div class="stat-label">💪 Работа</div><div class="stat-value highlight">${formatTime(runState.totalWorkTime)}</div></div>
+                ${(runState.warmupSeconds || 0) > 0 ? `<div class="stat-row"><div class="stat-label">🔥 Разминка</div><div class="stat-value">${formatTime(runState.warmupSeconds)}</div></div>` : ''}
+            </div>
+            <details class="finish-ex-stats">
+                <summary>📈 Статистика по упражнениям</summary>
+                <div class="finish-ex-stats-body">${exListHtml || '<div style="color:var(--muted);font-size:0.85rem;padding:6px 0;">Нет данных</div>'}</div>
+            </details>
+        </div>
         ${volumeHtml}
         ${prHtml}
-        ${noteItems.length ? `<details open style="margin-top:12px; background:var(--card); border-radius:var(--r-md); border:1px solid var(--border-soft);"><summary style="padding:14px 16px; font-weight:600;">📝 Заметки по упражнениям</summary><div style="padding:0 16px 16px;">${noteItems.join('')}</div></details>` : ''}
-        <details class="card" style="margin-top:12px;  background:var(--card); border-radius:var(--r-md); border:1px solid var(--border-soft);"><summary class="btn ghost small"  style="padding:14px 16px; font-weight:600;">📈 Статистика по упражнениям</summary><div style="padding:0 16px 16px;">${exListHtml}</div></details>
-		<div class="card" style="margin-top:12px;" id="finish-note-card"><button id="finish-note-toggle" class="btn ghost small" style="width:100%; padding:10px; font-size:0.85rem;" onclick="toggleFinishNote()">📝 Добавить заметку к тренировке</button><div id="finish-note-block" style="display:none; margin-top:8px;"><textarea id="finish-note" class="input" placeholder="Как самочувствие?" style="min-height:70px;">${escapeHtml(runState.workoutNoteDraft || '')}</textarea><button class="btn small accent" onclick="saveWorkoutNote(${record.id})">💾 Сохранить</button></div></div>
-        
-        <div style="height: 20px;"></div>
-		<button class="btn accent" onclick="shareResult(${record.id})" style="margin-top:16px;">📤 Поделиться</button>
-        <button class="btn ghost" onclick="saveCurrentRunAsTemplate()" style="margin-top:8px;">💾 Сохранить как шаблон</button>
-        <button class="btn" onclick="repeatLastWorkout(${runState.workout.id})" style="margin-top:8px;">🔁 Повторить тренировку</button>
-		<div style="height: 20px;"></div>
-		<button class="btn ghost" onclick="goAfterRunEnd()" style="margin-top:0; min-height:60px; font-size:1.1rem;" id="finish-back-btn">← Назад</button>
-		<button class="btn ghost" onclick="showScreen('screen-home')" style="margin-top:8px; min-height:56px; font-size:1.05rem;">🏠 На главную</button>
+        ${noteItems.length ? `<details class="finish-section-details" open><summary>📝 Заметки по упражнениям</summary><div class="finish-section-body">${noteItems.join('')}</div></details>` : ''}
+        <div id="finish-note-card" class="finish-note-wrap">
+            <button type="button" id="finish-note-toggle" class="btn ghost" onclick="toggleFinishNote()">📝 Добавить заметку к тренировке</button>
+            <div id="finish-note-block" style="display:none; margin-top:10px;">
+                <textarea id="finish-note" class="input" placeholder="Как самочувствие?" style="min-height:70px;">${escapeHtml(runState.workoutNoteDraft || '')}</textarea>
+                <button type="button" class="btn small accent" style="margin-top:8px; width:100%;" onclick="saveWorkoutNote(${record.id})">💾 Сохранить</button>
+            </div>
+        </div>
+        <div class="finish-actions">
+            <button type="button" class="btn accent" onclick="shareResult(${record.id})">📤 Поделиться</button>
+            <button type="button" class="btn ghost" onclick="saveCurrentRunAsTemplate()">💾 Сохранить как шаблон</button>
+            <button type="button" class="btn" onclick="repeatLastWorkout(${runState.workout.id})">🔁 Повторить тренировку</button>
+        </div>
+        <div class="finish-nav">
+            <button type="button" class="btn ghost" onclick="goAfterRunEnd()" id="finish-back-btn">← Назад</button>
+            <button type="button" class="btn ghost" onclick="showScreen('screen-home')">🏠 На главную</button>
+        </div>
     `;
     document.getElementById('phase-finish').style.display = 'block';
     releaseWakeLock();
