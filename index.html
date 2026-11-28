@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Fit Trainer Pro v1.2.7">
+<meta name="apple-mobile-web-app-title" content="Fit Trainer Pro v1.2.8">
 <meta name="theme-color" content="#0a0a10">
-<title>Fit Trainer Pro v1.2.7</title>
+<title>Fit Trainer Pro v1.2.8</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='25' fill='%230a0a10'/%3E%3Ctext x='50' y='75' font-size='75' font-family='Arial' font-weight='bold' text-anchor='middle' fill='%23a78bfa'%3EF%3C/text%3E%3C/svg%3E">
 
 <link rel="manifest" href='data:application/manifest+json,{"name":"Fit Trainer","short_name":"FitTrainer","start_url":".","display":"standalone","background_color":"%230a0a10","theme_color":"%230a0a10","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 192 192%27%3E%3Crect width=%27192%27 height=%27192%27 rx=%2750%27 fill=%27%230a0a10%27/%3E%3Ctext x=%2796%27 y=%27140%27 font-size=%27140%27 font-family=%27Arial%27 font-weight=%27bold%27 text-anchor=%27middle%27 fill=%27%23a78bfa%27%3EF%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 512 512%27%3E%3Crect width=%27512%27 height=%27512%27 rx=%27120%27 fill=%27%230a0a10%27/%3E%3Ctext x=%27256%27 y=%27380%27 font-size=%27380%27 font-family=%27Arial%27 font-weight=%27bold%27 text-anchor=%27middle%27 fill=%27%23a78bfa%27%3EF%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}]}'>
@@ -19,7 +19,7 @@
 <div class="app-container">
 
 <div id="screen-home" class="screen active">
-    <h1>💪 Fit Trainer Pro v1.2.7</h1>
+    <h1>💪 Fit Trainer Pro v1.2.8</h1>
     <div id="streak-banner-home"></div>
     <div id="home-today-banner" style="display:none;"></div>
     <div id="quick-start-section" class="card" style="margin-bottom:16px; padding:14px;  box-shadow:var(--shadow-sm);">
@@ -182,7 +182,7 @@
         <div class="group-body">
             <div id="workout-settings-global-note"
                  style="display:none;text-align:center;color:var(--muted);font-size:.8rem;line-height:1.45;font-weight:500;letter-spacing:.1px;padding:12px;margin:0 0 10px;background:var(--card-2);border:1px solid var(--border-soft);border-radius:12px;">
-                <div style="margin-bottom:10px;">У этой тренировки — <b style="color:var(--text);">общие параметры</b>.<br>Поля ниже показывают настройки приложения и заблокированы.</div>
+                <div style="margin-bottom:10px;">У этой тренировки — <b style="color:var(--text);">общие параметры</b>.<br>Персональные параметры скрыты.</div>
                 <button type="button" class="btn accent small" style="width:100%;margin:0 0 8px;min-height:44px;" onclick="enablePersonalSettingsForThisWorkout()">✨ Настроить только эту тренировку</button>
                 <button type="button" class="btn ghost small" style="width:100%;margin:0;min-height:40px;" onclick="openGlobalWorkoutSettingsFromEditor()">⚙️ Изменить общие параметры</button>
             </div>
@@ -191,6 +191,7 @@
                 Параметры <b style="color:var(--text);">только для этой тренировки</b>. Остальные используют общие настройки.
             </div>
 
+            <div id="editor-personal-fields">
             <div class="sound-section">
                 <div class="sound-section-title">Запуск</div>
                 <div class="editor-settings-card" style="margin:0; box-shadow:none;">
@@ -270,6 +271,7 @@
             </div>
 
             <button type="button" class="btn ghost small" id="editor-reset-to-global-btn" onclick="resetWorkoutSettingsToGlobal()" style="width:100%; margin-top:4px;">↺ Использовать общие параметры</button>
+            </div>
         </div>
     </details>
 
@@ -279,6 +281,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
         </button>
     </div>
+    <div id="live-editor-note" class="card" style="display:none;color:var(--muted);font-size:.85rem;"></div>
     <div id="exercises-list"></div>
     <button class="btn ghost" onclick="addExercise()">+ Добавить упражнение</button>
     <button class="btn ghost" onclick="addWarmup()" style="margin-top:6px; border:1px solid var(--warn); color:var(--warn);">🔥 Добавить разминку</button>
@@ -610,7 +613,7 @@
         <summary>ℹ️ О приложении</summary>
         <div class="group-body">
             <div class="card" style="color:var(--muted); font-size:0.85rem; line-height:1.6;">
-                <strong style="color:var(--text);">Fit Trainer Pro v1.2.7</strong><br>
+                <strong style="color:var(--text);">Fit Trainer Pro v1.2.8</strong><br>
                 Данные хранятся локально.<br>
                 <span id="error-log-info" style="display:block; margin-top:8px;"></span>
             </div>

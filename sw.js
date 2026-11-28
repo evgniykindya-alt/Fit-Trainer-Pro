@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ft-v1.2.7';
+const CACHE_VERSION = 'ft-v1.2.8';
 const CACHE_PREFIX = 'fit-trainer-';
 const CACHE_NAME = 'fit-trainer-' + CACHE_VERSION;
 const PRECACHE_URLS = ['./', './index.html', './css/app.css', './js/app.js', './sw.js'];
