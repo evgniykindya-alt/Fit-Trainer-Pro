@@ -17,7 +17,7 @@ window.addEventListener('unhandledrejection', (e) => {
     } catch(err) {}
 });
 
-const APP_VERSION = '1.2.7';
+const APP_VERSION = '1.2.8';
 const TAB_ID = 'tab_' + Math.random().toString(36).slice(2) + '_' + Date.now();
 const TAB_LOCK_KEY = 'ft_tab_lock';
 /** Чужой lock «жив», если heartbeat был недавно (учитываем throttling фона) */
@@ -2721,9 +2721,7 @@ function saveRunState() {
         removedExercises: runState._removedExercises || [],
         isTemp: !!runState.isTemp,
         // Для быстрых стартов сохраняем полный объект тренировки (её нет в DB.workouts)
-        workoutSnapshot: (runState.isTemp || !(DB.workouts || []).find(x => x.id === runState.workout.id))
-            ? JSON.parse(JSON.stringify(runState.workout))
-            : null,
+        workoutSnapshot: JSON.parse(JSON.stringify(runState.workout)),
         savedAt: savedAtTs
     };
     const serialized = JSON.stringify(snapshot);
@@ -3157,10 +3155,8 @@ async function offerResumeSavedSession() {
     else if (ok === false) { clearSavedRunState(); showToast('❌ Тренировка отменена'); }
 }
 function restoreRunState(saved) {
-    let workout = DB.workouts.find(w => w.id === saved.workoutId);
-    if (!workout && saved.workoutSnapshot) {
-        workout = saved.workoutSnapshot;
-    }
+    const source = saved.workoutSnapshot || DB.workouts.find(w => w.id === saved.workoutId);
+    let workout = source ? JSON.parse(JSON.stringify(source)) : null;
     if (!workout) { clearSavedRunState(); return; }
     let restoredPhase = saved.phase, restoredWarmupFinished = false, restoredWarmupPaused = false;
     if (saved.phase === 'warmup') {
@@ -3180,7 +3176,7 @@ function restoreRunState(saved) {
         warmupElapsedBeforePause: saved.warmupElapsedBeforePause || 0,
         warmupPaused: restoredWarmupPaused, warmupStartTime: null,
         countdownInterval: null, restOvertimeInterval: null, tickInterval: null,
-        workStartTime: null, workElapsedBeforePause: saved.workElapsedBeforePause || 0, workPaused: true,
+        workStartTime: null, workDuration: workout.exercises[saved.index || 0]?.type === "timer" ? (workout.exercises[saved.index || 0].timerDuration || 60) : 0, workElapsedBeforePause: saved.workElapsedBeforePause || 0, workPaused: true,
         restStartTime: null, restElapsedBeforePause: saved.restElapsedBeforePause || 0, restPaused: true,
         restDuration: saved.restDuration || 0, restBeepPlayed: true,
         restFinished: !!saved.restFinished, restOvertime: 0,
@@ -3196,7 +3192,7 @@ function restoreRunState(saved) {
         isDeload: saved.isDeload || false,
         deloadPercent: saved.deloadPercent || 35,
         _removedExercises: saved.removedExercises || [],
-        isTemp: !!(saved.isTemp || saved.workoutSnapshot)
+        isTemp: !!(saved.isTemp || !DB.workouts.some(w => w.id === saved.workoutId))
     };
     if (runState.countdownInterval) { try { clearInterval(runState.countdownInterval); } catch(e) {} runState.countdownInterval = null; }
     document.getElementById('run-title').innerText = workout.name;
@@ -3212,7 +3208,7 @@ function restoreRunState(saved) {
         const timerEl = document.getElementById('warmup-timer');
         if (timerEl) { if (runState.warmupMode === 'free') timerEl.innerText = formatTime(getCurrentElapsed('warmup')); else timerEl.innerText = formatTime(getRemainingTime('warmup')); }
     }
-    runReturnScreen = (saved.isTemp || saved.workoutSnapshot) ? 'screen-home' : 'screen-workouts';
+    runReturnScreen = runState.isTemp ? 'screen-home' : 'screen-workouts';
     showScreen('screen-run');
     ensureTicker();
     showToast('▶ Тренировка на паузе. Нажмите «Продолжить»', 4000);
@@ -3223,6 +3219,7 @@ const REST_PRESETS = [
     { v: 60, t: '1 мин' }, { v: 90, t: '1 мин 30 сек' }, { v: 120, t: '2 мин' }, { v: 180, t: '3 мин' }, { v: 300, t: '5 мин' }
 ];
 
+let liveEditor = null;
 let editingId = null, editingIsTemplate = false, editorExercises = [];
 let editorUsesPersonalSettings = false;
 let editingProgramId = null, editorProgram = null;
@@ -3377,7 +3374,7 @@ function pauseRunForSettings() {
     if (runState.phase === 'work' && !runState.workPaused) { pauseTimer('work'); p.pausedWork = true; }
     if (runState.phase === 'rest' && !runState.restPaused) { pauseTimer('rest'); p.pausedRest = true; if (runState.restFinished) stopRestAlarm(); }
     if (runState.phase === 'warmup' && !runState.warmupPaused && !runState.warmupFinished) { pauseTimer('warmup'); p.pausedWarmup = true; }
-    if (runState.phase === 'countdown' && runState.countdownInterval) {
+    if (runState.phase === 'countdown') {
         // Зафиксировать оставшееся по wall-clock перед паузой
         if (runState.countdownEndsAt) {
             runState.countdownValue = Math.max(0, Math.ceil((runState.countdownEndsAt - nowMs()) / 1000));
@@ -3440,6 +3437,7 @@ function closeSettings() {
     }
     showScreen(target);
     if (target === 'screen-run') resumeRunAfterSettings();
+    if (target === "screen-editor" && !editorUsesPersonalSettings) initWorkoutSettingsFields(null);
 }
 
 function showScreen(id) {
@@ -3841,6 +3839,7 @@ function saveNewOrder() {
         const prevCollapsed = { ...collapsedEditorElements };
         const reordered = oldIdxs.map(i => editorExercises[i]).filter(Boolean);
         if (reordered.length !== editorExercises.length) return;
+        if (liveEditor && reordered.slice(0, liveEditor.session.index + 1).some((el, i) => el !== editorExercises[i])) { renderEditorExercises(); showToast("Нельзя перемещать текущие и выполненные элементы"); return; }
         editorExercises = reordered;
         const nextCollapsed = {};
         oldIdxs.forEach((oldI, newI) => {
@@ -5849,6 +5848,8 @@ function bindEditorSettingToggles() {
 }
 function updateEditorWorkoutSettingsMode() {
     const locked = !editorUsesPersonalSettings;
+    document.getElementById("editor-personal-fields").hidden = locked;
+    document.getElementById("editor-settings-group").open = true;
     const autoStartEl = document.getElementById('auto-start');
     if (autoStartEl) {
         autoStartEl.disabled = locked;
@@ -5963,11 +5964,13 @@ async function resetWorkoutSettingsToGlobal() {
     updateEditorWorkoutSettingsMode();
     showToast('✓ Общие параметры');
 }
-function openEditor(id, isTemplate) {
+function openEditor(id, isTemplate, liveWorkout = null) {
+    if (!liveWorkout) liveEditor = null;
+    document.getElementById("live-editor-note").style.display = liveWorkout ? "block" : "none";
     editingId = id; editingIsTemplate = isTemplate;
     allEditorCollapsed = false; collapsedEditorElements = {};
     updateCollapseAllBtn(); initEditorSettingsAccordion();
-    if (id === null) {
+    if (id === null && !liveWorkout) {
         editorExercises = [];
         document.getElementById('workout-name').value = '';
         editorUsesPersonalSettings = false;
@@ -5977,7 +5980,7 @@ function openEditor(id, isTemplate) {
         document.getElementById('export-btn').style.display = 'none';
     } else {
         const src = isTemplate ? DB.templates : DB.workouts;
-        const w = src.find(x => x.id === id);
+        const w = liveWorkout || src.find(x => x.id === id);
         if (!w) return;
         if (!Array.isArray(w.exercises)) { showToast('⚠️ Тренировка повреждена'); return; }
         editorExercises = JSON.parse(JSON.stringify(w.exercises));
@@ -5996,11 +5999,60 @@ function openEditor(id, isTemplate) {
         document.getElementById('export-btn').style.display = 'block';
     }
     renderEditorExercises();
-    initWorkoutSettingsFields(id === null ? null : (editingIsTemplate ? DB.templates.find(x => x.id === id) : DB.workouts.find(x => x.id === id)));
+    initWorkoutSettingsFields(liveWorkout || (id === null ? null : (editingIsTemplate ? DB.templates.find(x => x.id === id) : DB.workouts.find(x => x.id === id))));
     updateEditorWorkoutSettingsMode();
     showScreen('screen-editor');
 }
-function cancelEditor() { showScreen(editingIsTemplate ? 'screen-templates' : 'screen-workouts'); notifyCancelled(); }
+function openLiveEditor() {
+    if (!runState || runState.phase === 'finish' || liveEditor || runState.setFinishing) return;
+    pauseRunForSettings();
+    const session = runState;
+    liveEditor = { session, original: JSON.parse(JSON.stringify(session.workout.exercises)), refs: null };
+    const draft = JSON.parse(JSON.stringify(session.workout));
+    if (session.isTemp && draft.usePersonalSettings === undefined) draft.usePersonalSettings = true;
+    openEditor(draft.id, false, draft);
+    liveEditor.refs = editorExercises.slice();
+    document.getElementById('editor-title').innerText = 'Редактирование тренировки';
+    document.getElementById('delete-btn').style.display = 'none';
+    document.getElementById('export-btn').style.display = 'none';
+    document.getElementById('live-editor-note').textContent = 'Тренировка на паузе. Выполненные элементы и порядок до текущего защищены. Тип начатого упражнения менять нельзя. ' + (session.isDeload || session.isTemp ? 'Изменения только в текущем занятии.' : 'Изменения сохраняются также в списке тренировок.');
+}
+function closeLiveEditor() {
+    const ctx = liveEditor;
+    liveEditor = null;
+    if (!ctx || runState !== ctx.session) { showScreen('screen-workouts'); return; }
+    showScreen('screen-run');
+    resumeRunAfterSettings();
+    if (runState.phase === 'ready' && runState.workout.autoStart) beginCurrentElementFlow(true);
+}
+function applyLiveEditor(data) {
+    const ctx = liveEditor;
+    if (!ctx || runState !== ctx.session) { showToast('Тренировка уже недоступна'); return; }
+    const r = runState, i = r.index, old = ctx.original[i], next = data.exercises[i];
+    for (let k = 0; k <= i; k++) {
+        if (editorExercises[k] !== ctx.refs[k]) { showToast('Нельзя удалять или перемещать текущие и выполненные элементы'); return; }
+        if (k < i) data.exercises[k] = JSON.parse(JSON.stringify(ctx.original[k]));
+    }
+    if (r.phase !== 'ready' && (old.kind !== next.kind || old.type !== next.type || old.setMode !== next.setMode || old.mode !== next.mode || (old.kind === "rest" && !old.duration !== !next.duration))) { showToast('Нельзя менять тип или режим уже начатого элемента'); return; }
+    if (next.type === 'sets' && (next.setsCount || 3) < r.currentSet) { showToast('Количество подходов не может быть меньше текущего'); return; }
+    const clean = JSON.parse(JSON.stringify(data));
+    Object.assign(r.workout, clean);
+    if (r.phase === 'work' && next.type === 'timer' && old.timerDuration !== next.timerDuration) { r.workDuration = next.timerDuration; r.timerFinished = false; r.timerBeepPlayed = false; stopExerciseAlarm(); }
+    if (r.phase === 'warmup' && !r.warmupFinished && next.mode !== 'free') r.warmupDuration = next.duration;
+    if (r.phase === 'rest' && !r.restBannerMode) {
+        const duration = r.restPhase === 'between-sets' ? (next.restBetweenSets || 60) : next.duration;
+        if (duration !== r.restDuration) { r.restDuration = duration; r.restFinished = false; r.restBeepPlayed = false; stopRestAlarm(); }
+    }
+    r.lastBeepTargetTime = undefined;
+    if (!r.isTemp && !r.isDeload) {
+        const stored = DB.workouts.find(w => w.id === r.workout.id);
+        if (stored) { Object.assign(stored, JSON.parse(JSON.stringify(clean))); saveDB('workouts'); }
+    }
+    document.getElementById('run-title').innerText = r.workout.name + (r.isDeload ? ' 🏷' : '');
+    saveRunState(); closeLiveEditor(); notifySaved('✅ Тренировка обновлена');
+}
+
+function cancelEditor() { if (liveEditor) { closeLiveEditor(); notifyCancelled(); return; } showScreen(editingIsTemplate ? 'screen-templates' : 'screen-workouts'); notifyCancelled(); }
 function updateCollapseAllBtn() {
     const btn = document.getElementById('collapse-all-btn');
     if (!btn) return;
@@ -6106,6 +6158,11 @@ function renderEditorExercises() {
         }
         return `<div class="exercise-block ${extraClass} ${isCollapsed ? 'collapsed' : ''}" onclick="onExerciseBlockClick(event, ${i})" data-editor-index="${i}">${header}<div class="exercise-body">${body}</div></div>`;
     }).join('');
+    if (liveEditor) {
+        c.querySelectorAll(".exercise-block").forEach((item, i) => {
+            if (i < liveEditor.session.index) item.querySelectorAll("input,select,textarea,button").forEach(el => el.disabled = true);
+        });
+    }
     // Перетаскивание карточек (упражнения / отдых / разминка), в т.ч. свёрнутых
     try {
         c.querySelectorAll('.exercise-block').forEach(item => {
@@ -6139,10 +6196,11 @@ function updateElement(i, f, v) {
         else if (typeof editorExercises[i].duration !== 'number' || editorExercises[i].duration < 5) editorExercises[i].duration = 180;
     }
 }
-function removeElement(i) { editorExercises.splice(i, 1); collapsedEditorElements = {}; allEditorCollapsed = false; updateCollapseAllBtn(); renderEditorExercises(); }
+function removeElement(i) { if (liveEditor && i <= liveEditor.session.index) { showToast("Нельзя удалить текущий или выполненный элемент"); return; } editorExercises.splice(i, 1); collapsedEditorElements = {}; allEditorCollapsed = false; updateCollapseAllBtn(); renderEditorExercises(); }
 function moveElement(i, d) {
     const j = i + d;
     if (j < 0 || j >= editorExercises.length) return;
+    if (liveEditor && Math.min(i,j) <= liveEditor.session.index) { showToast("Нельзя перемещать текущие и выполненные элементы"); return; }
     [editorExercises[i], editorExercises[j]] = [editorExercises[j], editorExercises[i]];
     collapsedEditorElements = {}; allEditorCollapsed = false; updateCollapseAllBtn();
     renderEditorExercises();
@@ -6157,11 +6215,11 @@ async function saveWorkout() {
         if (editorExercises.length === 0) { showToast('Добавь элементы'); return; }
         const hasExercise = editorExercises.some(e => e.kind === 'exercise');
         if (!hasExercise) { showToast('Добавь хотя бы одно упражнение'); return; }
-        const emptyNames = editorExercises.filter(e => e.kind === 'exercise' && !e.name.trim());
+        const emptyNames = editorExercises.filter(e => e.kind === 'exercise' && !String(e.name || "").trim());
         if (emptyNames.length > 0) {
             const ok = await customConfirm(`У ${emptyNames.length} упражнений не указано название. Установить «Упражнение»?`, { danger: false, okText: 'Продолжить' });
             if (!ok) return;
-            editorExercises.forEach(e => { if (e.kind === 'exercise' && !e.name.trim()) e.name = 'Упражнение'; });
+            editorExercises.forEach(e => { if (e.kind === 'exercise' && !String(e.name || '').trim()) e.name = 'Упражнение'; });
         }
         editorExercises.forEach(ex => {
             if (ex.kind === 'exercise' && ex.type === 'sets') {
@@ -6222,6 +6280,7 @@ async function saveWorkout() {
             };
         }
         const data = { name, autoStart, exercises: editorExercises, usePersonalSettings: !!editorUsesPersonalSettings, settings };
+        if (liveEditor) { applyLiveEditor(data); return; }
         const wasNew = editingId === null;
         if (editingIsTemplate) {
             if (editingId === null) DB.templates.push({ id: Date.now(), ...data });
@@ -6603,7 +6662,7 @@ function beginCurrentElementFlow(fromAuto = false) {
     if (!runState) return;
     if (runState.phase !== 'ready') return;
     if (runState._flowStarting) return;
-    if (runState._queueEditing) return;
+    if (runState._queueEditing || runState._menuOpen) return;
     unlockAudio(); saveRunState();
     if (!runState.workoutNameAnnounced) {
         runState.workoutNameAnnounced = true;
@@ -6628,7 +6687,7 @@ function beginCurrentElementFlow(fromAuto = false) {
     proceedWithElement(fromAuto);
 }
 function proceedWithElement(fromAuto) {
-    if (!runState) return;
+    if (!runState || runState._menuOpen || runState._queueEditing) return;
     if (runState.phase !== 'ready') return;
     const el = runState.workout.exercises[runState.index];
     if (!el) { showFinishScreen(); return; }
@@ -6759,6 +6818,7 @@ function speakTimerDuration(sec) {
     speakCritical(parts.join(' ') || 'ноль минут');
 }
 function startExerciseNow() {
+    if (!runState || runState._menuOpen || runState._queueEditing || !["ready", "countdown"].includes(runState.phase)) return;
     runState.phase = 'work';
     runState.workPaused = false;
     runState.currentExerciseWorkTime = 0;
@@ -7157,7 +7217,8 @@ function _updateSetTimeRing(el, t) {
     }
     if (remaining <= 0 && !runState.setFinishing && !runState.workPaused && !runState._menuOpen && !finishExerciseInProgress) {
         runState.setFinishing = true;
-        Promise.resolve(finishExercise()).finally(() => { runState.setFinishing = false; });
+        const session = runState;
+        Promise.resolve(finishExercise()).finally(() => { if (runState === session) session.setFinishing = false; });
     }
 }
 function _updateRestRing() {
@@ -7679,6 +7740,7 @@ function ensureNoStuckRunState() {
     }
     // 2) If runState claims to be active but user is on home/workouts and there is no open run UI — clear
     if (runState && isWorkoutActive()) {
+        if (liveEditor || runState._settingsPaused) return;
         const onRun = document.getElementById('screen-run') && document.getElementById('screen-run').classList.contains('active');
         if (!onRun) {
             // Stale in-memory state (common after incomplete quick-start / navigation)
@@ -9245,6 +9307,7 @@ async function enablePersonalSettingsForThisWorkout() {
     );
     if (choice === true) {
         editorUsesPersonalSettings = true;
+        document.getElementById("editor-settings-group").open = true;
         updateEditorWorkoutSettingsMode();
         showToast('✅ Параметры только для этой тренировки');
         return;
@@ -9963,57 +10026,17 @@ function openRunMenu() {
     if (!runState) return;
     if (hasOpenOverlay()) return;
     if (runState.phase === 'finish') { openFinishedWorkoutMenu(); return; }
+    if (finishExerciseInProgress || runState.setFinishing) return;
 
-    let pausedWork = false, pausedRest = false, pausedWarmup = false, pausedCountdown = false;
-    if (runState.phase === 'work' && !runState.workPaused) { pauseTimer('work'); pausedWork = true; }
-    if (runState.phase === 'rest' && !runState.restPaused && !runState.restBannerMode) { pauseTimer('rest'); pausedRest = true; }
-    if (runState.phase === 'warmup' && !runState.warmupPaused && !runState.warmupFinished) { pauseTimer('warmup'); pausedWarmup = true; }
-    // Пауза обратного отсчёта (countdown) — важно для быстрых стартов с автозапуском
-    if (runState.phase === 'countdown' && runState.countdownInterval) {
-        try { clearInterval(runState.countdownInterval); } catch(e) {}
-        runState.countdownInterval = null;
-        pausedCountdown = true;
-    }
-    runState._menuPaused = { pausedWork, pausedRest, pausedWarmup, pausedCountdown };
-    runState._menuOpen = true;
-    renderRun();
-
-    function resumeTimersFromMenu() {
-        if (!runState || !runState._menuPaused) return;
-        const p = runState._menuPaused;
-        runState._menuPaused = null;
-        runState._menuOpen = false;
-        if (p.pausedWork && runState.phase === 'work') resumeTimer('work');
-        if (p.pausedRest && runState.phase === 'rest') resumeTimer('rest');
-        if (p.pausedWarmup && runState.phase === 'warmup') resumeTimer('warmup');
-        // Возобновить countdown с текущего значения
-        if (p.pausedCountdown && runState.phase === 'countdown') {
-            clearInterval(runState.countdownInterval);
-            runState.countdownInterval = setInterval(() => {
-                if (!runState || runState.phase !== 'countdown') { clearInterval(runState.countdownInterval); return; }
-                if (runState._menuOpen) return; // не тикаем, пока меню снова открыто
-                runState.countdownValue--;
-                if (runState.countdownValue > 0) {
-                    if (isVoiceMode() && !runState.isMuted) { if (runState.countdownValue <= 3) speakCritical(String(runState.countdownValue)); }
-                    else if (!runState.isMuted) playBeep(600, 0.1);
-                    renderRun();
-                } else {
-                    clearInterval(runState.countdownInterval);
-                    runState.countdownInterval = null;
-                    if (isVoiceMode() && !runState.isMuted) setTimeout(() => startExerciseNow(), 500);
-                    else { if (!runState.isMuted) playBeep(900, 0.3); setTimeout(() => startExerciseNow(), 300); }
-                }
-            }, 1000);
-        }
-        saveRunState();
-        renderRun();
-    }
+    pauseRunForSettings();
+    function resumeTimersFromMenu() { resumeRunAfterSettings(); setTimeout(() => { if (runState && !runState._menuOpen && runState.phase === "ready" && runState.workout.autoStart) beginCurrentElementFlow(true); }, 0); }
 
     const ov = document.createElement('div');
     ov.className = 'notif-side-overlay action-menu-overlay';
     ov.innerHTML = `<div class="notif-side-sheet">
         <div class="notif-side-grabber"><div class="notif-side-grabber-bar"></div></div>
         <h2 class="sheet-title">Управление тренировкой</h2>
+        <button class="btn ghost" onclick="closeTopSheet(); openLiveEditor();">✏️ Редактировать тренировку</button>
         <button class="btn ghost" onclick="closeTopSheet(); openRunQueueEditor();">Изменить порядок</button>
         <button class="btn ghost" onclick="closeTopSheet(); pauseRunForSettings(); openGlobalSettingsFrom('screen-run');">⚙️ Общие настройки</button>
         <button class="btn accent" onclick="closeTopSheet(); finishWorkoutEarly();">Завершить сейчас</button>
@@ -10074,26 +10097,13 @@ function openRunQueueEditor() {
 
     let currentIdx = runState.index;
 
-    const pausedWork = (runState.phase === 'work' && !runState.workPaused);
-    const pausedRest = (runState.phase === 'rest' && !runState.restPaused && !runState.restBannerMode);
-    const pausedWarmup = (runState.phase === 'warmup' && !runState.warmupPaused && !runState.warmupFinished);
-    if (pausedWork) pauseTimer('work');
-    if (pausedRest) pauseTimer('rest');
-    if (pausedWarmup) pauseTimer('warmup');
-
+    pauseRunForSettings();
     runState._queueEditing = true;
-
     function resumeAfterClose() {
         if (!runState) return;
         runState._queueEditing = false;
-        if (pausedWork && runState.phase === 'work') resumeTimer('work');
-        if (pausedRest && runState.phase === 'rest') resumeTimer('rest');
-        if (pausedWarmup && runState.phase === 'warmup') resumeTimer('warmup');
-        saveRunState();
-        renderRun();
-        if (runState.phase === 'ready' && runState.workout.autoStart) {
-            setTimeout(() => { if (runState && runState.phase === 'ready' && !runState._queueEditing) beginCurrentElementFlow(true); }, 400);
-        }
+        resumeRunAfterSettings();
+        if (runState.phase === 'ready' && runState.workout.autoStart) beginCurrentElementFlow(true);
     }
 
     function renderList() {
